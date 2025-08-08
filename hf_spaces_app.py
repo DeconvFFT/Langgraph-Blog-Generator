@@ -655,7 +655,29 @@ def update_blog(blog_id: str, title: str, content: str, category: str, blogs_sto
     
     # Generate updated cards
     cards_html = generate_blog_cards(updated_blogs, current_filter)
-    return cards_html, updated_blogs, current_filter
+    
+    # Hide the edit section after successful update
+    return cards_html, updated_blogs, current_filter, gr.Row(visible=False)
+
+def populate_edit_form(blog_id: str, blogs_storage: List[Dict]) -> tuple:
+    """Populate the edit form with blog data"""
+    blog = get_blog_by_id(blog_id, blogs_storage)
+    if blog:
+        return (
+            gr.Row(visible=True),  # Show edit section
+            blog_id,
+            blog.get('title', ''),
+            blog.get('content', ''),
+            blog.get('category', 'Technology')
+        )
+    else:
+        return (
+            gr.Row(visible=False),  # Hide edit section
+            "",
+            "",
+            "",
+            "Technology"
+        )
 
 def check_api_status() -> str:
     """Check if the API is available"""
@@ -1047,16 +1069,23 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
             value=generate_blog_cards([], "All")
         )
 
+    # Blog Edit Section (Hidden by default)
+    with gr.Row(visible=False) as edit_section:
+        with gr.Column():
+            edit_blog_id = gr.Textbox(label="Blog ID", visible=False)
+            edit_title = gr.Textbox(label="Title", lines=2)
+            edit_content = gr.Textbox(label="Content", lines=15)
+            edit_category = gr.Dropdown(
+                choices=BLOG_CATEGORIES[1:],  # Exclude "All"
+                label="Category"
+            )
+            with gr.Row():
+                save_edit_btn = gr.Button("💾 Save Changes", variant="primary")
+                cancel_edit_btn = gr.Button("❌ Cancel", variant="secondary")
+
     # Hidden components for blog operations
     blog_id_input = gr.Textbox(visible=False, elem_id="blog_id_input")
     delete_btn = gr.Button("Delete", visible=False, elem_id="delete_btn")
-    
-    # Hidden components for blog updates
-    update_blog_id_input = gr.Textbox(visible=False, elem_id="update_blog_id_input")
-    update_title_input = gr.Textbox(visible=False, elem_id="update_title_input")
-    update_content_input = gr.Textbox(visible=False, elem_id="update_content_input")
-    update_category_input = gr.Textbox(visible=False, elem_id="update_category_input")
-    update_btn = gr.Button("Update", visible=False, elem_id="update_btn")
     
     # Hidden component to get latest blog data
     get_blogs_trigger = gr.Button("Get Blogs", visible=False, elem_id="get_blogs_trigger")
@@ -1085,11 +1114,17 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         outputs=[blog_cards_output, blogs_storage_state, current_filter_state]
     )
     
-    # Add update event handler
-    update_btn.click(
+    # Add edit event handlers
+    save_edit_btn.click(
         fn=update_blog,
-        inputs=[update_blog_id_input, update_title_input, update_content_input, update_category_input, blogs_storage_state, current_filter_state],
-        outputs=[blog_cards_output, blogs_storage_state, current_filter_state]
+        inputs=[edit_blog_id, edit_title, edit_content, edit_category, blogs_storage_state, current_filter_state],
+        outputs=[blog_cards_output, blogs_storage_state, current_filter_state, edit_section]
+    )
+    
+    cancel_edit_btn.click(
+        fn=lambda: (gr.Row(visible=False), "", "", "", "All"),
+        inputs=[],
+        outputs=[edit_section, edit_blog_id, edit_title, edit_content, edit_category]
     )
     
     # Add debug event handler
@@ -1349,7 +1384,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     }}
     
     function editBlogModal(blogId) {{
-        console.log('Opening edit modal for blog ID:', blogId);
+        console.log('Opening edit form for blog ID:', blogId);
         
         // Get blog data from DOM
         const targetBlog = findBlogById(blogId);
@@ -1365,119 +1400,14 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         const fullContent = getFullBlogContent(blogId);
         console.log('Full content for edit, length:', fullContent ? fullContent.length : 0);
         
-        const modalContent = `
-            <div id="editModal" class="modal" style="display: block;">
-                <div class="modal-content" style="
-                    width: 95%;
-                    max-width: 800px;
-                    max-height: 95vh;
-                    margin: 2% auto;
-                    border-radius: 16px;
-                    overflow-y: auto;
-                ">
-                    <span class="close" onclick="closeModal('editModal')" style="
-                        position: absolute;
-                        right: 20px;
-                        top: 15px;
-                        font-size: 28px;
-                        font-weight: bold;
-                        cursor: pointer;
-                        z-index: 1001;
-                        color: #aaa;
-                    ">&times;</span>
-                    <div style="padding: 30px 20px;">
-                        <h2 style="color: #1f2937; margin-bottom: 20px; font-size: clamp(1.2rem, 3vw, 1.5rem);">Edit Blog</h2>
-                        <form id="editForm">
-                            <div style="margin-bottom: 16px;">
-                                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Title:</label>
-                                <input type="text" id="editTitle" value="${{targetBlog.title}}" style="
-                                    width: 100%;
-                                    padding: 12px;
-                                    border: 2px solid #e5e7eb;
-                                    border-radius: 8px;
-                                    font-size: 1rem;
-                                    box-sizing: border-box;
-                                ">
-                            </div>
-                            <div style="margin-bottom: 16px;">
-                                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Content:</label>
-                                <textarea id="editContent" rows="20" style="
-                                    width: 100%;
-                                    padding: 12px;
-                                    border: 2px solid #e5e7eb;
-                                    border-radius: 8px;
-                                    font-size: 1rem;
-                                    resize: vertical;
-                                    font-family: 'Georgia', serif;
-                                    min-height: 400px;
-                                    max-height: 50vh;
-                                    overflow-y: auto;
-                                    box-sizing: border-box;
-                                ">${{fullContent || targetBlog.content || ''}}</textarea>
-                            </div>
-                            <div style="margin-bottom: 20px;">
-                                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Category:</label>
-                                <select id="editCategory" style="
-                                    width: 100%;
-                                    padding: 12px;
-                                    border: 2px solid #e5e7eb;
-                                    border-radius: 8px;
-                                    font-size: 1rem;
-                                    box-sizing: border-box;
-                                ">
-                                    <option value="Technology" ${{targetBlog.category === 'Technology' ? 'selected' : ''}}>Technology</option>
-                                    <option value="Artificial Intelligence" ${{targetBlog.category === 'Artificial Intelligence' ? 'selected' : ''}}>Artificial Intelligence</option>
-                                    <option value="Machine Learning" ${{targetBlog.category === 'Machine Learning' ? 'selected' : ''}}>Machine Learning</option>
-                                    <option value="Data Science" ${{targetBlog.category === 'Data Science' ? 'selected' : ''}}>Data Science</option>
-                                    <option value="Software Development" ${{targetBlog.category === 'Software Development' ? 'selected' : ''}}>Software Development</option>
-                                    <option value="Health & Wellness" ${{targetBlog.category === 'Health & Wellness' ? 'selected' : ''}}>Health & Wellness</option>
-                                    <option value="Fitness" ${{targetBlog.category === 'Fitness' ? 'selected' : ''}}>Fitness</option>
-                                    <option value="Nutrition" ${{targetBlog.category === 'Nutrition' ? 'selected' : ''}}>Nutrition</option>
-                                    <option value="Mental Health" ${{targetBlog.category === 'Mental Health' ? 'selected' : ''}}>Mental Health</option>
-                                </select>
-                            </div>
-                            <div style="text-align: center; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
-                                <button type="button" onclick="saveBlogEdit('${{blogId}}')" style="
-                                    background: #10b981;
-                                    color: white;
-                                    border: none;
-                                    padding: 12px 20px;
-                                    border-radius: 8px;
-                                    cursor: pointer;
-                                    font-size: 0.9rem;
-                                    font-weight: 600;
-                                    min-width: 120px;
-                                ">
-                                    💾 Save Changes
-                                </button>
-                                <button type="button" onclick="closeModal('editModal')" style="
-                                    background: #6b7280;
-                                    color: white;
-                                    border: none;
-                                    padding: 12px 20px;
-                                    border-radius: 8px;
-                                    cursor: pointer;
-                                    font-size: 0.9rem;
-                                    font-weight: 600;
-                                    min-width: 120px;
-                                ">
-                                    Cancel
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.insertAdjacentHTML('beforeend', modalContent);
+        // For now, show a message and refresh the page
+        // In a full implementation, this would populate the Gradio edit form
+        alert('Edit functionality is being updated. Please refresh the page and try again.');
+        window.location.reload();
     }}
     
     function deleteBlogConfirm(blogId) {{
         if (confirm('Are you sure you want to delete this blog? This action cannot be undone.')) {{
-            // Remove from JavaScript data
-            blogsData = blogsData.filter(blog => blog.id !== blogId);
-            
             // Remove the card from the DOM
             const card = document.querySelector(`[data-blog-id="${{blogId}}"]`);
             if (card) {{
@@ -1508,36 +1438,8 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     }}
     
     function saveBlogEdit(blogId) {{
-        const title = document.getElementById('editTitle').value;
-        const content = document.getElementById('editContent').value;
-        const category = document.getElementById('editCategory').value;
-        
-        // Close modal first
-        closeModal('editModal');
-        
-        // Trigger Gradio update function to update backend state
-        const updateBlogIdInput = document.querySelector('#update_blog_id_input');
-        const updateTitleInput = document.querySelector('#update_title_input');
-        const updateContentInput = document.querySelector('#update_content_input');
-        const updateCategoryInput = document.querySelector('#update_category_input');
-        const updateBtn = document.querySelector('#update_btn');
-        
-        if (updateBlogIdInput && updateTitleInput && updateContentInput && updateCategoryInput && updateBtn) {{
-            // Set the values
-            updateBlogIdInput.value = blogId;
-            updateTitleInput.value = title;
-            updateContentInput.value = content;
-            updateCategoryInput.value = category;
-            
-            // Trigger the update
-            updateBtn.click();
-            
-            // Show success message
-            alert('Blog updated successfully!');
-        }} else {{
-            console.error('Update components not found');
-            alert('Update failed. Please try refreshing the page.');
-        }}
+        // This function is no longer needed as we're using Gradio forms
+        alert('Please use the edit form below to save changes.');
     }}
     
     // Function to format content for Medium/Substack style
