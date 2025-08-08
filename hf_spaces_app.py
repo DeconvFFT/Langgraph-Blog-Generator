@@ -888,9 +888,11 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         
         // Get all blog cards from the page
         const blogCards = document.querySelectorAll('.blog-card');
+        console.log('Found blog cards:', blogCards.length);
+        
         const newBlogsData = [];
         
-        blogCards.forEach(card => {{
+        blogCards.forEach((card, index) => {{
             const blogId = card.getAttribute('data-blog-id');
             const title = card.querySelector('h3').textContent;
             const topic = card.querySelector('span').textContent.replace('📌 ', '');
@@ -898,10 +900,14 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
             const category = card.querySelector('div[style*="position: absolute"]').textContent;
             const created_at = card.querySelector('span[style*="color: #9ca3af"]').textContent.replace('📅 ', '');
             
+            console.log(`Card ${{index}}:`, {{ blogId, title, topic, language, category, created_at }});
+            
             // Always get the full content from the original Python data
             const originalData = {json.dumps(blogs_storage)};
             const originalBlog = originalData.find(b => b.id === blogId);
             const fullContent = originalBlog ? originalBlog.content : '';
+            
+            console.log(`Card ${{index}} content length:`, fullContent ? fullContent.length : 0);
             
             newBlogsData.push({{
                 id: blogId,
@@ -916,30 +922,45 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         
         blogsData = newBlogsData;
         console.log('Blogs data refreshed:', blogsData);
+        console.log('Total blogs in data:', blogsData.length);
     }}
     
     // Function to get full blog content - simplified approach
     function getFullBlogContent(blogId) {{
+        console.log('Getting full content for blog ID:', blogId);
+        
         // First try to get from current JavaScript data
         const blog = findBlogById(blogId);
+        console.log('Found blog in current data:', blog);
+        
         if (blog && blog.content) {{
+            console.log('Content length from current data:', blog.content.length);
             return blog.content;
         }}
         
         // If not found, try to get from the original Python data
         const originalData = {json.dumps(blogs_storage)};
+        console.log('Original Python data:', originalData);
+        
         const originalBlog = originalData.find(b => b.id === blogId);
+        console.log('Found blog in original data:', originalBlog);
+        
         if (originalBlog && originalBlog.content) {{
+            console.log('Content length from original data:', originalBlog.content.length);
             return originalBlog.content;
         }}
         
-        return null;
+        console.log('No content found for blog ID:', blogId);
+        return '';
     }}
     
     function viewBlogModal(blogId) {{
+        console.log('Opening view modal for blog ID:', blogId);
+        
         // Find blog data
         const blog = findBlogById(blogId);
         if (!blog) {{
+            console.log('Blog not found in current data, refreshing...');
             // Try to refresh data and find again
             refreshBlogsDataFromPage();
             const refreshedBlog = findBlogById(blogId);
@@ -950,12 +971,18 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         }}
         
         const targetBlog = blog || findBlogById(blogId);
+        console.log('Target blog:', targetBlog);
         
         // Get the full content from the Python backend
         const fullContent = getFullBlogContent(blogId);
+        console.log('Full content retrieved, length:', fullContent ? fullContent.length : 0);
+        
+        // Use the content we have (fullContent or targetBlog.content)
+        const contentToDisplay = fullContent || targetBlog.content || '';
+        console.log('Content to display, length:', contentToDisplay.length);
         
         // Format content for Medium/Substack style
-        const formattedContent = formatContentForArticle(fullContent || targetBlog.content);
+        const formattedContent = formatContentForArticle(contentToDisplay);
         
         // Create modal content
         const modalContent = `
@@ -1180,7 +1207,13 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     
     // Function to format content for Medium/Substack style
     function formatContentForArticle(content) {{
-        if (!content) return '<p>No content available.</p>';
+        console.log('Formatting content, length:', content ? content.length : 0);
+        console.log('Content preview:', content ? content.substring(0, 100) : 'null');
+        
+        if (!content || content.trim() === '') {{
+            console.log('No content provided, showing error message');
+            return '<p style="color: #ef4444; font-style: italic;">⚠️ Content not available. Please try refreshing the page or contact support if the issue persists.</p>';
+        }}
         
         // Convert markdown-like formatting to HTML
         let formatted = content
@@ -1206,6 +1239,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         formatted = formatted.replace(/<p><li>/g, '<ul><li>');
         formatted = formatted.replace(/<\\/li><\\/p>/g, '</li></ul>');
         
+        console.log('Formatted content length:', formatted.length);
         return formatted;
     }}
     
