@@ -83,6 +83,35 @@ def clean_title(title: str) -> str:
     
     return cleaned
 
+def clean_content(content: str) -> str:
+    """Clean up content formatting - remove markdown and format properly"""
+    if not content:
+        return ""
+    
+    # Remove markdown formatting from the beginning
+    cleaned = content.strip()
+    
+    # Remove any markdown headers at the start
+    lines = cleaned.split('\n')
+    cleaned_lines = []
+    
+    for line in lines:
+        # Skip empty lines at the beginning
+        if not cleaned_lines and not line.strip():
+            continue
+        
+        # Clean markdown formatting
+        line = line.replace('**', '').replace('*', '').replace('__', '').replace('_', '')
+        line = line.replace('"', '').replace('"', '').replace('"', '').replace('"', '')
+        line = line.replace("'", '').replace("'", '').replace("'", '').replace("'", '')
+        
+        cleaned_lines.append(line)
+    
+    # Join lines back together
+    cleaned = '\n'.join(cleaned_lines)
+    
+    return cleaned.strip()
+
 def generate_blog(topic: str, language: str) -> Dict[str, Any]:
     """Generate a blog using the API with enhanced prompts for emojis and better formatting"""
     if not topic.strip():
@@ -410,14 +439,18 @@ def generate_and_save_blog(topic: str, language: str) -> tuple:
     if check_duplicate_blog(cleaned_title):
         return "", "❌ Blog already exists with this title."
     
+    # Clean the content
+    raw_content = blog_content.get('content', '')
+    cleaned_content = clean_content(raw_content)
+    
     # Create blog object
     blog = {
         'id': str(uuid.uuid4()),
         'title': cleaned_title,
-        'content': blog_content.get('content', ''),
+        'content': cleaned_content,
         'topic': topic,
         'language': language,
-        'category': categorize_blog(topic, blog_content.get('content', '')),
+        'category': categorize_blog(topic, cleaned_content),
         'created_at': datetime.now().strftime("%B %d, %Y"),
         'api_response': result
     }
@@ -500,7 +533,7 @@ def update_blog(blog_id: str, title: str, content: str, category: str) -> str:
     for blog in blogs_storage:
         if blog.get('id') == blog_id:
             blog['title'] = clean_title(title)
-            blog['content'] = content
+            blog['content'] = clean_content(content)
             blog['category'] = category
             blog['updated_at'] = datetime.now().strftime("%B %d, %Y")
             break
