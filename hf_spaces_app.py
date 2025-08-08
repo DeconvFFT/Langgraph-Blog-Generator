@@ -1088,34 +1088,34 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     )
     
     # Add JavaScript for advanced blog management with proper data synchronization
-    gr.HTML("""
+    gr.HTML(f"""
     <script>
     // Global variables for blog data - synchronized with Python backend
     let blogsData = [];
     
     // Function to update blogs data from Python backend
-    function updateBlogsData(newData) {
+    function updateBlogsData(newData) {{
         blogsData = newData;
-    }
+    }}
     
     // Function to get the latest Python data
-    function getLatestPythonData() {
+    function getLatestPythonData() {{
         // This function will be called to get the most recent data from Python
         // For now, we'll use the initial data, but in a real implementation,
         // this would make an AJAX call to get the latest data
         return [];
-    }
+    }}
     
     // Function to sync JavaScript data with Python data
-    function syncJavaScriptData() {
+    function syncJavaScriptData() {{
         console.log('Syncing JavaScript data with Python data...');
         const latestData = getLatestPythonData();
         blogsData = latestData;
         console.log('JavaScript data synced:', blogsData);
-    }
+    }}
     
     // Function to debug available blogs
-    function debugAvailableBlogs() {
+    function debugAvailableBlogs() {{
         console.log('=== DEBUG: Available Blogs ===');
         console.log('Current JavaScript data:', blogsData);
         
@@ -1123,28 +1123,28 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         console.log('Latest Python data:', latestData);
         
         console.log('Blogs in current data:');
-        blogsData.forEach((blog, index) => {
-            console.log(`  ${index}: ID=${blog.id}, Title="${blog.title}"`);
-        });
+        blogsData.forEach((blog, index) => {{
+            console.log(`  ${{index}}: ID=${{blog.id}}, Title="${{blog.title}}"`);
+        }});
         
         console.log('Blogs in latest data:');
-        latestData.forEach((blog, index) => {
-            console.log(`  ${index}: ID=${blog.id}, Title="${blog.title}"`);
-        });
+        latestData.forEach((blog, index) => {{
+            console.log(`  ${{index}}: ID=${{blog.id}}, Title="${{blog.title}}"`);
+        }});
         console.log('=== END DEBUG ===');
-    }
+    }}
     
     // Function to find blog by ID - simplified using embedded data
-    function findBlogById(blogId) {
+    function findBlogById(blogId) {{
         console.log('🔍 Finding blog with ID:', blogId);
         
         // Find the blog card in the DOM
-        const blogCard = document.querySelector(`[data-blog-id="${blogId}"]`);
-        if (blogCard) {
+        const blogCard = document.querySelector(`[data-blog-id="${{blogId}}"]`);
+        if (blogCard) {{
             console.log('✅ Found blog card in DOM:', blogCard);
             
             // Extract data from the card's data attributes
-            const blog = {
+            const blog = {{
                 id: blogCard.getAttribute('data-blog-id'),
                 title: blogCard.getAttribute('data-blog-title'),
                 content: blogCard.getAttribute('data-blog-content'),
@@ -1152,48 +1152,48 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                 language: blogCard.getAttribute('data-blog-language'),
                 category: blogCard.getAttribute('data-blog-category'),
                 created_at: blogCard.getAttribute('data-blog-created')
-            };
+            }};
             
             console.log('📋 Extracted blog data from DOM:', blog);
             console.log('📄 Content length from DOM:', blog.content ? blog.content.length : 0);
             console.log('📄 Content preview from DOM:', blog.content ? blog.content.substring(0, 200) : 'null');
             
             return blog;
-        }
+        }}
         
         console.log('❌ Blog card not found in DOM');
         console.log('🔍 Available blog cards:', document.querySelectorAll('.blog-card').length);
         console.log('🔍 Available blog IDs:', Array.from(document.querySelectorAll('.blog-card')).map(card => card.getAttribute('data-blog-id')));
         return null;
-    }
+    }}
     
     // Function to get full blog content - simplified using embedded data
-    function getFullBlogContent(blogId) {
+    function getFullBlogContent(blogId) {{
         console.log('📄 Getting full content for blog ID:', blogId);
         
         // Get the blog card from DOM
-        const blogCard = document.querySelector(`[data-blog-id="${blogId}"]`);
-        if (blogCard) {
+        const blogCard = document.querySelector(`[data-blog-id="${{blogId}}"]`);
+        if (blogCard) {{
             const content = blogCard.getAttribute('data-blog-content');
             console.log('✅ Content found in DOM, length:', content ? content.length : 0);
             console.log('📄 Content preview from DOM:', content ? content.substring(0, 200) : 'null');
             return content;
-        }
+        }}
         
         console.log('❌ Blog card not found in DOM');
         return '';
-    }
+    }}
     
-    function viewBlogModal(blogId) {
+    function viewBlogModal(blogId) {{
         console.log('Opening view modal for blog ID:', blogId);
         
         // Get blog data from DOM
         const targetBlog = findBlogById(blogId);
-        if (!targetBlog) {
+        if (!targetBlog) {{
             console.log('Blog not found in DOM');
             alert('Blog not found. This might be a temporary issue. Please try refreshing the page.');
             return;
-        }
+        }}
         
         console.log('Target blog found:', targetBlog);
         
@@ -1244,7 +1244,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                             line-height: 1.2;
                             margin-bottom: 20px;
                             text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-                        ">${targetBlog.title}</h1>
+                        ">${{targetBlog.title}}</h1>
                         <div class="article-meta" style="
                             display: flex;
                             flex-wrap: wrap;
@@ -1252,10 +1252,10 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                             font-size: 0.9rem;
                             opacity: 0.9;
                         ">
-                            <span>📌 ${targetBlog.topic}</span>
-                            <span>🌍 ${targetBlog.language}</span>
-                            <span>🏷️ ${targetBlog.category}</span>
-                            <span>📅 ${targetBlog.created_at}</span>
+                            <span>📌 ${{targetBlog.topic}}</span>
+                            <span>🌍 ${{targetBlog.language}}</span>
+                            <span>🏷️ ${{targetBlog.category}}</span>
+                            <span>📅 ${{targetBlog.created_at}}</span>
                         </div>
                     </div>
                     
@@ -1270,7 +1270,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                         overflow-y: auto;
                         max-height: 60vh;
                     ">
-                        ${formattedContent}
+                        ${{formattedContent}}
                     </div>
                     
                     <!-- Action Buttons -->
@@ -1284,7 +1284,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                         gap: 10px;
                         justify-content: center;
                     ">
-                        <button onclick="editBlogModal('${blogId}')" style="
+                        <button onclick="editBlogModal('${{blogId}}')" style="
                             background: #f59e0b;
                             color: white;
                             border: none;
@@ -1316,18 +1316,18 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         `;
         
         document.body.insertAdjacentHTML('beforeend', modalContent);
-    }
+    }}
     
-    function editBlogModal(blogId) {
+    function editBlogModal(blogId) {{
         console.log('Opening edit modal for blog ID:', blogId);
         
         // Get blog data from DOM
         const targetBlog = findBlogById(blogId);
-        if (!targetBlog) {
+        if (!targetBlog) {{
             console.log('Blog not found in DOM');
             alert('Blog not found. This might be a temporary issue. Please try refreshing the page.');
             return;
-        }
+        }}
         
         console.log('Target blog for edit found:', targetBlog);
         
@@ -1360,7 +1360,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                         <form id="editForm">
                             <div style="margin-bottom: 16px;">
                                 <label style="display: block; margin-bottom: 8px; font-weight: 600;">Title:</label>
-                                <input type="text" id="editTitle" value="${targetBlog.title}" style="
+                                <input type="text" id="editTitle" value="${{targetBlog.title}}" style="
                                     width: 100%;
                                     padding: 12px;
                                     border: 2px solid #e5e7eb;
@@ -1383,7 +1383,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                                     max-height: 50vh;
                                     overflow-y: auto;
                                     box-sizing: border-box;
-                                ">${fullContent || targetBlog.content || ''}</textarea>
+                                ">${{fullContent || targetBlog.content || ''}}</textarea>
                             </div>
                             <div style="margin-bottom: 20px;">
                                 <label style="display: block; margin-bottom: 8px; font-weight: 600;">Category:</label>
@@ -1395,19 +1395,19 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                                     font-size: 1rem;
                                     box-sizing: border-box;
                                 ">
-                                    <option value="Technology" ${targetBlog.category === 'Technology' ? 'selected' : ''}>Technology</option>
-                                    <option value="Artificial Intelligence" ${targetBlog.category === 'Artificial Intelligence' ? 'selected' : ''}>Artificial Intelligence</option>
-                                    <option value="Machine Learning" ${targetBlog.category === 'Machine Learning' ? 'selected' : ''}>Machine Learning</option>
-                                    <option value="Data Science" ${targetBlog.category === 'Data Science' ? 'selected' : ''}>Data Science</option>
-                                    <option value="Software Development" ${targetBlog.category === 'Software Development' ? 'selected' : ''}>Software Development</option>
-                                    <option value="Health & Wellness" ${targetBlog.category === 'Health & Wellness' ? 'selected' : ''}>Health & Wellness</option>
-                                    <option value="Fitness" ${targetBlog.category === 'Fitness' ? 'selected' : ''}>Fitness</option>
-                                    <option value="Nutrition" ${targetBlog.category === 'Nutrition' ? 'selected' : ''}>Nutrition</option>
-                                    <option value="Mental Health" ${targetBlog.category === 'Mental Health' ? 'selected' : ''}>Mental Health</option>
+                                    <option value="Technology" ${{targetBlog.category === 'Technology' ? 'selected' : ''}}>Technology</option>
+                                    <option value="Artificial Intelligence" ${{targetBlog.category === 'Artificial Intelligence' ? 'selected' : ''}}>Artificial Intelligence</option>
+                                    <option value="Machine Learning" ${{targetBlog.category === 'Machine Learning' ? 'selected' : ''}}>Machine Learning</option>
+                                    <option value="Data Science" ${{targetBlog.category === 'Data Science' ? 'selected' : ''}}>Data Science</option>
+                                    <option value="Software Development" ${{targetBlog.category === 'Software Development' ? 'selected' : ''}}>Software Development</option>
+                                    <option value="Health & Wellness" ${{targetBlog.category === 'Health & Wellness' ? 'selected' : ''}}>Health & Wellness</option>
+                                    <option value="Fitness" ${{targetBlog.category === 'Fitness' ? 'selected' : ''}}>Fitness</option>
+                                    <option value="Nutrition" ${{targetBlog.category === 'Nutrition' ? 'selected' : ''}}>Nutrition</option>
+                                    <option value="Mental Health" ${{targetBlog.category === 'Mental Health' ? 'selected' : ''}}>Mental Health</option>
                                 </select>
                             </div>
                             <div style="text-align: center; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
-                                <button type="button" onclick="saveBlogEdit('${blogId}')" style="
+                                <button type="button" onclick="saveBlogEdit('${{blogId}}')" style="
                                     background: #10b981;
                                     color: white;
                                     border: none;
@@ -1441,43 +1441,43 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         `;
         
         document.body.insertAdjacentHTML('beforeend', modalContent);
-    }
+    }}
     
-    function deleteBlogConfirm(blogId) {
-        if (confirm('Are you sure you want to delete this blog? This action cannot be undone.')) {
+    function deleteBlogConfirm(blogId) {{
+        if (confirm('Are you sure you want to delete this blog? This action cannot be undone.')) {{
             // Remove from JavaScript data
             blogsData = blogsData.filter(blog => blog.id !== blogId);
             
             // Remove the card from the DOM
-            const card = document.querySelector(`[data-blog-id="${blogId}"]`);
-            if (card) {
+            const card = document.querySelector(`[data-blog-id="${{blogId}}"]`);
+            if (card) {{
                 card.remove();
-            }
+            }}
             
             // Trigger Gradio delete function to update backend
             const deleteBtn = document.querySelector('#delete_btn');
-            if (deleteBtn) {
+            if (deleteBtn) {{
                 // Set the blog ID and trigger delete
                 const blogIdInput = document.querySelector('#blog_id_input');
-                if (blogIdInput) {
+                if (blogIdInput) {{
                     blogIdInput.value = blogId;
-                }
+                }}
                 deleteBtn.click();
-            }
+            }}
             
             // Show success message
             alert('Blog deleted successfully!');
-        }
-    }
+        }}
+    }}
     
-    function closeModal(modalId) {
+    function closeModal(modalId) {{
         const modal = document.getElementById(modalId);
-        if (modal) {
+        if (modal) {{
             modal.remove();
-        }
-    }
+        }}
+    }}
     
-    function saveBlogEdit(blogId) {
+    function saveBlogEdit(blogId) {{
         const title = document.getElementById('editTitle').value;
         const content = document.getElementById('editContent').value;
         const category = document.getElementById('editCategory').value;
@@ -1486,21 +1486,21 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         closeModal('editModal');
         
                  // Update the blog card in the DOM immediately
-         const blogCard = document.querySelector(`[data-blog-id="${blogId}"]`);
-         if (blogCard) {
+         const blogCard = document.querySelector(`[data-blog-id="${{blogId}}"]`);
+         if (blogCard) {{
              // Update the title in the card
              const titleElement = blogCard.querySelector('h3');
-             if (titleElement) {
+             if (titleElement) {{
                  titleElement.textContent = title;
-             }
+             }}
              
              // Update the category badge
              const categoryBadge = blogCard.querySelector('div[style*="position: absolute"][style*="top: 16px"][style*="right: 16px"]');
-             if (categoryBadge) {
+             if (categoryBadge) {{
                  categoryBadge.textContent = category;
                  
                  // Update category badge color
-                 const categoryColors = {
+                 const categoryColors = {{
                      "Technology": "#3B82F6",
                      "Artificial Intelligence": "#8B5CF6", 
                      "Machine Learning": "#06B6D4",
@@ -1510,18 +1510,18 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                      "Fitness": "#14B8A6",
                      "Nutrition": "#F97316",
                      "Mental Health": "#6366F1"
-                 };
+                 }};
                  
                  const newColor = categoryColors[category] || "#3B82F6";
                  categoryBadge.style.background = newColor;
-             }
+             }}
              
              // Update the content preview
              const contentPreview = blogCard.querySelector('p[style*="color: #4b5563"]');
-             if (contentPreview) {
+             if (contentPreview) {{
                  const preview = content.length > 200 ? content.substring(0, 200) : content;
                  contentPreview.textContent = preview;
-             }
+             }}
              
              // Update the data attributes for future reference
              blogCard.setAttribute('data-blog-title', title);
@@ -1530,22 +1530,22 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
              
              // Update the JavaScript data array to reflect the changes
              const blogIndex = blogsData.findIndex(blog => blog.id === blogId);
-             if (blogIndex !== -1) {
+             if (blogIndex !== -1) {{
                  blogsData[blogIndex].title = title;
                  blogsData[blogIndex].content = content;
                  blogsData[blogIndex].category = category;
-             }
+             }}
              
              // Trigger Gradio category filter refresh to update the view properly
              const currentCategoryDropdown = document.querySelector('#category_dropdown select');
-             if (currentCategoryDropdown) {
+             if (currentCategoryDropdown) {{
                  // Trigger change event to refresh the category filter
-                 currentCategoryDropdown.dispatchEvent(new Event('change', { bubbles: true }));
+                 currentCategoryDropdown.dispatchEvent(new Event('change', {{ bubbles: true }}));
                  console.log('✅ Category filter refreshed after blog update');
-             }
+             }}
              
              console.log('✅ Blog card updated in DOM and category filtering applied');
-         }
+         }}
          
          // Trigger Gradio update function to update backend state
          const updateBlogIdInput = document.querySelector('#update_blog_id_input input');
@@ -1554,7 +1554,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
          const updateCategoryInput = document.querySelector('#update_category_input input');
          const updateBtn = document.querySelector('#update_btn');
          
-         if (updateBlogIdInput && updateTitleInput && updateContentInput && updateCategoryInput && updateBtn) {
+         if (updateBlogIdInput && updateTitleInput && updateContentInput && updateCategoryInput && updateBtn) {{
              // Set the values
              updateBlogIdInput.value = blogId;
              updateTitleInput.value = title;
@@ -1562,10 +1562,10 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
              updateCategoryInput.value = category;
              
              // Trigger change events
-             [updateBlogIdInput, updateTitleInput, updateContentInput, updateCategoryInput].forEach(input => {
-                 input.dispatchEvent(new Event('input', { bubbles: true }));
-                 input.dispatchEvent(new Event('change', { bubbles: true }));
-             });
+             [updateBlogIdInput, updateTitleInput, updateContentInput, updateCategoryInput].forEach(input => {{
+                 input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                 input.dispatchEvent(new Event('change', {{ bubbles: true }}));
+             }});
              
              // Trigger the update
              updateBtn.click();
@@ -1574,21 +1574,21 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
              
              // Show success message
              alert('Blog updated successfully!');
-         } else {
+         }} else {{
              console.error('Update components not found');
              alert('Update failed. Please try refreshing the page.');
-         }
-    }
+         }}
+    }}
     
     // Function to format content for Medium/Substack style
-    function formatContentForArticle(content) {
+    function formatContentForArticle(content) {{
         console.log('Formatting content, length:', content ? content.length : 0);
         console.log('Content preview:', content ? content.substring(0, 100) : 'null');
         
-        if (!content || content.trim() === '') {
+        if (!content || content.trim() === '') {{
             console.log('No content provided, showing error message');
             return '<p style="color: #ef4444; font-style: italic;">⚠️ Content not available. Please try refreshing the page or contact support if the issue persists.</p>';
-        }
+        }}
         
         // Convert markdown-like formatting to HTML
         let formatted = content
@@ -1616,30 +1616,30 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         
         console.log('Formatted content length:', formatted.length);
         return formatted;
-    }
+    }}
     
     // Close modal when clicking outside
-    window.onclick = function(event) {
-        if (event.target.classList.contains('modal')) {
+    window.onclick = function(event) {{
+        if (event.target.classList.contains('modal')) {{
             event.target.remove();
-        }
-    }
+        }}
+    }}
     
     // Auto-refresh blogs data after page loads
-    window.addEventListener('load', function() {
-        setTimeout(() => {
+    window.addEventListener('load', function() {{
+        setTimeout(() => {{
             syncJavaScriptData();
             debugAvailableBlogs();
-        }, 1000);
-    });
+        }}, 1000);
+    }});
     
     // Refresh blogs data when new blogs are generated
-    function refreshBlogsData() {
-        setTimeout(() => {
+    function refreshBlogsData() {{
+        setTimeout(() => {{
             syncJavaScriptData();
             debugAvailableBlogs();
-        }, 500);
-    }
+        }}, 500);
+    }}
     </script>
     """)
 
