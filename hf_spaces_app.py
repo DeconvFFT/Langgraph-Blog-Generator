@@ -1554,7 +1554,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
          // Trigger Gradio update function to update backend state
          const updateBlogIdInput = document.querySelector('#update_blog_id_input input');
          const updateTitleInput = document.querySelector('#update_title_input input');
-         const updateContentInput = document.querySelector('#update_content_input input');
+         const updateContentInput = document.querySelector('#update_content_input textarea');
          const updateCategoryInput = document.querySelector('#update_category_input input');
          const updateBtn = document.querySelector('#update_btn');
          
