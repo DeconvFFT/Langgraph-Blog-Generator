@@ -1527,7 +1527,30 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
              blogCard.setAttribute('data-blog-content', content);
              blogCard.setAttribute('data-blog-category', category);
              
-             console.log('✅ Blog card updated in DOM');
+             // Update the JavaScript data array to reflect the changes
+             const blogIndex = blogsData.findIndex(blog => blog.id === blogId);
+             if (blogIndex !== -1) {{
+                 blogsData[blogIndex].title = title;
+                 blogsData[blogIndex].content = content;
+                 blogsData[blogIndex].category = category;
+             }}
+             
+             // Check if the current category filter should hide this blog
+             const currentCategoryDropdown = document.querySelector('#category_dropdown select');
+             if (currentCategoryDropdown) {{
+                 const selectedCategory = currentCategoryDropdown.value;
+                 
+                 // If we're filtering by a specific category and the blog no longer matches, hide it
+                 if (selectedCategory !== 'All' && selectedCategory !== category) {{
+                     blogCard.style.display = 'none';
+                     console.log(`🔄 Blog hidden from ${selectedCategory} filter (now categorized as ${category})`);
+                 }} else if (selectedCategory === 'All' || selectedCategory === category) {{
+                     blogCard.style.display = 'block';
+                     console.log(`✅ Blog visible in ${selectedCategory} filter`);
+                 }}
+             }}
+             
+             console.log('✅ Blog card updated in DOM and category filtering applied');
          }}
          
          // Trigger Gradio update function to update backend state
