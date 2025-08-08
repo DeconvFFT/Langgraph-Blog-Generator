@@ -48,7 +48,7 @@ class BlogStateManager:
                     self.last_save_time = state_data.get('last_save_time')
                     print(f"✅ State loaded from backup {BACKUP_STATE_FILE}")
                     print(f"📦 Loaded {len(self.blogs_storage)} blogs")
-else:
+            else:
                 print("🆕 No existing state found, starting fresh")
         except Exception as e:
             print(f"⚠️ Error loading state: {e}")
@@ -1653,9 +1653,9 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
             .replace(/^## (.*$)/gim, '<h2>$1</h2>')
             .replace(/^# (.*$)/gim, '<h1>$1</h1>')
             // Bold
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>')
             // Italic
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/\\*(.*?)\\*/g, '<em>$1</em>')
             // Lists
             .replace(/^\\* (.*$)/gim, '<li>$1</li>')
             .replace(/^- (.*$)/gim, '<li>$1</li>')
