@@ -709,15 +709,14 @@ def update_blog(blog_id: str, title: str, content: str, category: str, blogs_sto
     # Generate updated cards
     cards_html = generate_blog_cards(updated_blogs, current_filter)
     
-    # Hide the edit section after successful update
-    return cards_html, updated_blogs, current_filter, gr.Row(visible=False)
+    # Clear the edit form after successful update
+    return cards_html, updated_blogs, current_filter, ""
 
 def populate_edit_form(blog_id: str, blogs_storage: List[Dict]) -> tuple:
     """Populate the edit form with blog data"""
     blog = get_blog_by_id(blog_id, blogs_storage)
     if blog:
         return (
-            gr.Row(visible=True),  # Show edit section
             blog_id,
             blog.get('title', ''),
             blog.get('content', ''),
@@ -725,7 +724,6 @@ def populate_edit_form(blog_id: str, blogs_storage: List[Dict]) -> tuple:
         )
     else:
         return (
-            gr.Row(visible=False),  # Hide edit section
             "",
             "",
             "",
@@ -1122,20 +1120,35 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
             value=generate_blog_cards([], "All")
         )
 
-    # Blog Edit Section (Hidden by default, but with CSS to allow JS manipulation)
-    with gr.Row(visible=False, elem_id="edit_section") as edit_section:
+    # Blog Edit Section - Always visible but initially empty
+    gr.HTML("<h2 style='margin-top: 40px; color: #1f2937; border-top: 2px solid #e5e7eb; padding-top: 20px;'>✏️ Edit Blog</h2>")
+    
+    with gr.Row() as edit_section:
         with gr.Column():
+            gr.HTML("<p style='color: #6b7280; margin-bottom: 20px;'>Click 'Edit' on any blog card above to edit it here.</p>")
+            
             edit_blog_id = gr.Textbox(label="Blog ID", visible=False, elem_id="edit_blog_id")
-            edit_title = gr.Textbox(label="Title", lines=2, elem_id="edit_title")
-            edit_content = gr.Textbox(label="Content", lines=15, elem_id="edit_content")
+            edit_title = gr.Textbox(
+                label="📝 Title", 
+                lines=2, 
+                elem_id="edit_title",
+                placeholder="Blog title will appear here when you click Edit..."
+            )
+            edit_content = gr.Textbox(
+                label="📄 Content", 
+                lines=15, 
+                elem_id="edit_content",
+                placeholder="Blog content will appear here when you click Edit..."
+            )
             edit_category = gr.Dropdown(
                 choices=BLOG_CATEGORIES[1:],  # Exclude "All"
-                label="Category",
-                elem_id="edit_category"
+                label="🏷️ Category",
+                elem_id="edit_category",
+                value="Technology"
             )
             with gr.Row():
-                save_edit_btn = gr.Button("💾 Save Changes", variant="primary")
-                cancel_edit_btn = gr.Button("❌ Cancel", variant="secondary")
+                save_edit_btn = gr.Button("💾 Save Changes", variant="primary", elem_id="save_edit_btn")
+                cancel_edit_btn = gr.Button("❌ Clear Form", variant="secondary", elem_id="cancel_edit_btn")
 
     # Hidden components for blog operations
     blog_id_input = gr.Textbox(visible=False, elem_id="blog_id_input")
@@ -1180,27 +1193,27 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     save_edit_btn.click(
         fn=update_blog,
         inputs=[edit_blog_id, edit_title, edit_content, edit_category, blogs_storage_state, current_filter_state],
-        outputs=[blog_cards_output, blogs_storage_state, current_filter_state, edit_section]
+        outputs=[blog_cards_output, blogs_storage_state, current_filter_state, edit_blog_id]
     )
     
     cancel_edit_btn.click(
-        fn=lambda: (gr.Row(visible=False), "", "", "", "All"),
+        fn=lambda: ("", "", "", "Technology"),
         inputs=[],
-        outputs=[edit_section, edit_blog_id, edit_title, edit_content, edit_category]
+        outputs=[edit_blog_id, edit_title, edit_content, edit_category]
     )
     
     # Add edit trigger event handler
     edit_trigger_btn.click(
         fn=populate_edit_form,
         inputs=[edit_trigger_id, blogs_storage_state],
-        outputs=[edit_section, edit_blog_id, edit_title, edit_content, edit_category]
+        outputs=[edit_blog_id, edit_title, edit_content, edit_category]
     )
     
     # Alternative edit trigger event handler
     edit_alt_btn.click(
         fn=populate_edit_form,
         inputs=[edit_alt_id, blogs_storage_state],
-        outputs=[edit_section, edit_blog_id, edit_title, edit_content, edit_category]
+        outputs=[edit_blog_id, edit_title, edit_content, edit_category]
     )
     
     # Add debug event handler
@@ -1479,43 +1492,26 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         // Close any open modal first
         closeModal('viewModal');
         
-        // Direct approach: Find and populate the edit form elements directly
-        const populateEditFormDirectly = () => {{
+        // Simplified approach: directly populate the now-visible edit form
+        const populateEditForm = () => {{
             try {{
-                console.log('🔍 Looking for edit form elements directly...');
+                console.log('🔍 Looking for edit form elements...');
                 
-                // Find edit form elements using multiple selectors
-                const editBlogIdInput = document.querySelector('#edit_blog_id input') ||
-                                       document.querySelector('input[data-testid="edit_blog_id"]') ||
-                                       document.querySelector('[id*="edit_blog_id"] input');
-                                       
-                const editTitleInput = document.querySelector('#edit_title textarea') ||
-                                     document.querySelector('#edit_title input') ||
-                                     document.querySelector('textarea[data-testid="edit_title"]') ||
-                                     document.querySelector('[id*="edit_title"] textarea');
-                                     
-                const editContentTextarea = document.querySelector('#edit_content textarea') ||
-                                           document.querySelector('textarea[data-testid="edit_content"]') ||
-                                           document.querySelector('[id*="edit_content"] textarea');
-                                           
-                const editCategorySelect = document.querySelector('#edit_category select') ||
-                                          document.querySelector('select[data-testid="edit_category"]') ||
-                                          document.querySelector('[id*="edit_category"] select');
-                                          
-                const editSection = document.querySelector('#edit_section') ||
-                                   document.querySelector('[data-testid="edit_section"]') ||
-                                   document.querySelector('[id*="edit_section"]');
+                // Find edit form elements
+                const editBlogIdInput = document.querySelector('#edit_blog_id input');
+                const editTitleInput = document.querySelector('#edit_title textarea');
+                const editContentTextarea = document.querySelector('#edit_content textarea');
+                const editCategorySelect = document.querySelector('#edit_category select');
                 
                 console.log('Edit form elements found:', {{
                     blogId: !!editBlogIdInput,
                     title: !!editTitleInput,
                     content: !!editContentTextarea,
-                    category: !!editCategorySelect,
-                    section: !!editSection
+                    category: !!editCategorySelect
                 }});
                 
                 if (editBlogIdInput && editTitleInput && editContentTextarea && editCategorySelect) {{
-                    console.log('✅ Found all edit form elements - populating directly');
+                    console.log('✅ Found all edit form elements - populating');
                     
                     // Populate the form fields
                     editBlogIdInput.value = blogId;
@@ -1523,62 +1519,45 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                     editContentTextarea.value = fullContent || targetBlog.content || '';
                     editCategorySelect.value = targetBlog.category;
                     
-                    // Trigger change events
+                    // Trigger change events to sync with Gradio
                     [editBlogIdInput, editTitleInput, editContentTextarea, editCategorySelect].forEach(element => {{
                         element.dispatchEvent(new Event('input', {{ bubbles: true }}));
                         element.dispatchEvent(new Event('change', {{ bubbles: true }}));
                     }});
                     
-                    // Show the edit section
-                    if (editSection) {{
-                        editSection.style.display = 'block';
-                        editSection.style.visibility = 'visible';
-                        
-                        // Find parent containers that might be hidden
-                        let parent = editSection.parentElement;
-                        while (parent && parent !== document.body) {{
-                            if (parent.style.display === 'none') {{
-                                parent.style.display = 'block';
-                            }}
-                            parent = parent.parentElement;
-                        }}
-                        
-                        // Scroll to the edit section
-                        setTimeout(() => {{
+                    // Scroll to the edit section
+                    setTimeout(() => {{
+                        const editSection = document.querySelector('h2:contains("Edit Blog")') || 
+                                           document.querySelector('[id*="edit"]').closest('.gr-row') ||
+                                           editTitleInput.closest('.gr-column');
+                        if (editSection) {{
                             editSection.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
-                        }}, 300);
-                    }}
+                        }}
+                    }}, 200);
                     
-                    console.log('✅ Edit form populated and shown successfully');
+                    console.log('✅ Edit form populated successfully');
+                    alert('✅ Blog loaded in edit form below! Scroll down to edit.');
                     return true;
                 }} else {{
-                    console.log('❌ Not all edit form elements found');
+                    console.log('❌ Edit form elements not ready yet');
                     return false;
                 }}
             }} catch (error) {{
-                console.error('❌ Error populating edit form directly:', error);
+                console.error('❌ Error populating edit form:', error);
                 return false;
             }}
         }};
         
-        // Try direct population first
-        let success = populateEditFormDirectly();
-        
+        // Try to populate the form, with retries if needed
+        let success = populateEditForm();
         if (!success) {{
-            console.log('🔄 Direct population failed, trying to find any edit-related elements...');
-            
-            // Debug: Show all available elements
-            console.log('All textareas:', document.querySelectorAll('textarea'));
-            console.log('All selects:', document.querySelectorAll('select'));
-            console.log('All elements with "edit" in id:', document.querySelectorAll('[id*="edit"]'));
-            
-            // Try again after a delay
+            console.log('🔄 Retrying edit form population...');
             setTimeout(() => {{
-                success = populateEditFormDirectly();
+                success = populateEditForm();
                 if (!success) {{
-                    alert('Edit form is not yet available. Please wait for the page to fully load and try again.');
+                    alert('Edit form is still loading. Please wait a moment and try again.');
                 }}
-            }}, 2000);
+            }}, 1000);
         }}
     }}
     
