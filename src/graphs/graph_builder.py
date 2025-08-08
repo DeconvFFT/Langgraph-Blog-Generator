@@ -105,3 +105,9 @@ class GraphBuilder:
             return self.build_topic_graph().compile()
         else:
             raise ValueError(f"❌ Unsupported use case: {usecase}. Supported cases: 'topic'")
+        
+
+## for Langsmith debugging
+llm = GroqLLM().get_llm()
+graph_builder = GraphBuilder(llm)
+graph = graph_builder.build_topic_graph().compile()
