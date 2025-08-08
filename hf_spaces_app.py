@@ -9,7 +9,7 @@ import uuid
 import html
 
 # Configuration
-API_BASE_URL = os.getenv('API_BASE_URL', 'http://langgraph-blog-generator-production.up.railway.app')  # Default to localhost for development
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')  # Default to localhost for development
 API_ENDPOINT = f"{API_BASE_URL}/blogs"
 
 # Supported languages
@@ -1006,8 +1006,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
             choices=BLOG_CATEGORIES,
             value="All",
             label="🏷️ Filter by Category",
-            info="Select a category to filter blogs",
-            elem_id="category_dropdown"
+            info="Select a category to filter blogs"
         )
     
     # Blog Cards Display Section
@@ -1088,7 +1087,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     )
     
     # Add JavaScript for advanced blog management with proper data synchronization
-    gr.HTML("""
+    gr.HTML(f"""
     <script>
     // Global variables for blog data - synchronized with Python backend
     let blogsData = [];
@@ -1547,9 +1546,37 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
              console.log('✅ Blog card updated in DOM and category filtering applied');
          }}
          
-         // Skip Gradio backend update - frontend-only update is sufficient for filtering
-         console.log('✅ Blog updated successfully (frontend-only)');
-         alert('Blog updated successfully!');
+         // Trigger Gradio update function to update backend state
+         const updateBlogIdInput = document.querySelector('#update_blog_id_input input');
+         const updateTitleInput = document.querySelector('#update_title_input input');
+         const updateContentInput = document.querySelector('#update_content_input input');
+         const updateCategoryInput = document.querySelector('#update_category_input input');
+         const updateBtn = document.querySelector('#update_btn');
+         
+         if (updateBlogIdInput && updateTitleInput && updateContentInput && updateCategoryInput && updateBtn) {{
+             // Set the values
+             updateBlogIdInput.value = blogId;
+             updateTitleInput.value = title;
+             updateContentInput.value = content;
+             updateCategoryInput.value = category;
+             
+             // Trigger change events
+             [updateBlogIdInput, updateTitleInput, updateContentInput, updateCategoryInput].forEach(input => {{
+                 input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                 input.dispatchEvent(new Event('change', {{ bubbles: true }}));
+             }});
+             
+             // Trigger the update
+             updateBtn.click();
+             
+             console.log('✅ Gradio update triggered');
+             
+             // Show success message
+             alert('Blog updated successfully!');
+         }} else {{
+             console.error('Update components not found');
+             alert('Update failed. Please try refreshing the page.');
+         }}
     }}
     
     // Function to format content for Medium/Substack style
@@ -1569,9 +1596,9 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
             .replace(/^## (.*$)/gim, '<h2>$1</h2>')
             .replace(/^# (.*$)/gim, '<h1>$1</h1>')
             // Bold
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>')
             // Italic
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/\\*(.*?)\\*/g, '<em>$1</em>')
             // Lists
             .replace(/^\\* (.*$)/gim, '<li>$1</li>')
             .replace(/^- (.*$)/gim, '<li>$1</li>')
