@@ -11,6 +11,7 @@ The updated UI includes:
 - **⚡ CRUD Operations**: Create, Read, Update, Delete blogs
 - **📱 Responsive Design**: Works perfectly on all devices
 - **🎯 Portfolio-Style**: Professional layout like modern portfolio websites
+- **💾 State Persistence**: Blogs persist across refreshes and deployments
 
 ## Prerequisites
 
@@ -32,10 +33,10 @@ The updated UI includes:
 
 ## Step 2: Configure the Space
 
-Create the following files in your Space:
+The repository now has the correct file structure:
 
 ### `app.py` (Main Gradio App)
-Use the `hf_spaces_app.py` file from this repository as your `app.py`.
+This is the Gradio frontend with state management and portfolio-style UI.
 
 **Key Features:**
 - Portfolio-style blog cards
@@ -43,6 +44,11 @@ Use the `hf_spaces_app.py` file from this repository as your `app.py`.
 - Category filtering
 - Full CRUD operations
 - Modern UI with gradients
+- **State persistence** with pickle-based storage
+- Mobile-friendly responsive design
+
+### `app_fastapi.py` (Backend API)
+This is the FastAPI backend for blog generation (deploy separately to Railway/Render/etc.)
 
 ### `requirements.txt`
 ```
@@ -66,7 +72,7 @@ API_BASE_URL=https://your-railway-api-endpoint.com
 
 ## Step 4: Deploy
 
-1. **Upload Files**: Upload `hf_spaces_app.py` as `app.py` and `requirements_hf.txt` as `requirements.txt`
+1. **Push to Repository**: The `app.py` file is now correctly set up for Gradio deployment
 2. **Set Secrets**: Add your API endpoint as a secret
 3. **Wait for Build**: Hugging Face will automatically build and deploy your app
 
@@ -78,7 +84,7 @@ Each blog displays as a beautiful card with:
 - **Blog Image**: Gradient placeholder with emoji
 - **Title**: Large, bold blog title
 - **Tags**: Topic and language indicators
-- **Preview**: First 150 characters of content
+- **Preview**: First 200 characters of content
 - **Actions**: View, Edit, Delete buttons
 
 ### **Category System**
@@ -93,101 +99,14 @@ Each blog displays as a beautiful card with:
 - **Update**: Edit blog title, content, and category
 - **Delete**: Remove blogs with confirmation
 
+### **State Management**
+- **💾 Persistent Storage**: Blogs saved to `blog_state.pkl`
+- **🔄 Auto-Save**: Every operation automatically saves state
+- **📊 Status Display**: Shows total blogs and last save time
+- **🛡️ Backup System**: Automatic backup before each save
+
 ## 🚀 **Usage**
 
 ### **Generate a Blog**
 1. Enter topic: "The Future of Artificial Intelligence"
 2. Select language: "English"
-3. Click "Generate & Save Blog"
-4. Blog appears as a card with auto-categorization
-
-### **Filter by Category**
-1. Select "Artificial Intelligence" from dropdown
-2. Only AI-related blogs are shown
-3. Switch to "All" to see everything
-
-### **View Full Blog**
-1. Click "👁️ View" button on any card
-2. Modal opens with full blog content
-3. Click "Close" to return
-
-### **Edit Blog**
-1. Click "✏️ Edit" button
-2. Modal opens with editable fields
-3. Modify title, content, or category
-4. Click "Save Changes"
-
-### **Delete Blog**
-1. Click "🗑️ Delete" button
-2. Confirmation dialog appears
-3. Confirm to remove blog
-
-## 🌈 **Category Colors**
-
-Each category has its own color scheme:
-- **Technology**: Blue (#3B82F6)
-- **Artificial Intelligence**: Purple (#8B5CF6)
-- **Machine Learning**: Cyan (#06B6D4)
-- **Data Science**: Green (#10B981)
-- **Software Development**: Orange (#F59E0B)
-- **Business**: Red (#EF4444)
-- And more...
-
-## 🔧 **Configuration**
-
-### **API Endpoint**
-Make sure your `API_BASE_URL` secret points to your Railway API:
-```
-https://your-app-name.railway.app
-```
-
-### **Customization**
-You can customize:
-- **Categories**: Modify `BLOG_CATEGORIES` list
-- **Colors**: Update `category_colors` dictionary
-- **Styling**: Edit the `custom_css` section
-- **Languages**: Add more languages to `SUPPORTED_LANGUAGES`
-
-## 📱 **Responsive Design**
-
-The UI is fully responsive and works on:
-- **Desktop**: Full portfolio layout
-- **Tablet**: Optimized card grid
-- **Mobile**: Stacked cards with touch-friendly buttons
-
-## 🎨 **Design Features**
-
-- **Gradient Backgrounds**: Beautiful color transitions
-- **Hover Effects**: Cards lift on hover
-- **Modal Windows**: For viewing and editing
-- **Smooth Animations**: CSS transitions
-- **Professional Typography**: Clean, readable fonts
-
-## 🚀 **Deployment Checklist**
-
-- [ ] Created Hugging Face Space
-- [ ] Uploaded `hf_spaces_app.py` as `app.py`
-- [ ] Uploaded `requirements_hf.txt` as `requirements.txt`
-- [ ] Set `API_BASE_URL` secret
-- [ ] Verified Railway API is running
-- [ ] Tested blog generation
-- [ ] Tested category filtering
-- [ ] Tested CRUD operations
-
-## 🔗 **Links**
-
-- **Your Space**: `https://huggingface.co/spaces/YOUR_USERNAME/blog-generator`
-- **Railway API**: `https://your-app-name.railway.app`
-- **Documentation**: This README
-
-## 🎉 **Success!**
-
-Your portfolio-style blog manager is now live on Hugging Face Spaces with:
-- ✅ Beautiful card-based UI
-- ✅ Auto-categorization
-- ✅ Category filtering
-- ✅ Full CRUD operations
-- ✅ Responsive design
-- ✅ Professional styling
-
-**Visit your Space URL to start using the new UI!** 🚀
