@@ -48,7 +48,7 @@ class BlogStateManager:
                     self.last_save_time = state_data.get('last_save_time')
                     print(f"✅ State loaded from backup {BACKUP_STATE_FILE}")
                     print(f"📦 Loaded {len(self.blogs_storage)} blogs")
-            else:
+else:
                 print("🆕 No existing state found, starting fresh")
         except Exception as e:
             print(f"⚠️ Error loading state: {e}")
@@ -1707,3 +1707,4 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
 
 # Launch the app
 demo.launch()
+    
