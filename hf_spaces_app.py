@@ -1006,7 +1006,8 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
             choices=BLOG_CATEGORIES,
             value="All",
             label="🏷️ Filter by Category",
-            info="Select a category to filter blogs"
+            info="Select a category to filter blogs",
+            elem_id="category_dropdown"
         )
     
     # Blog Cards Display Section
@@ -1565,10 +1566,15 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
              
              // After a short delay, refresh the category filter to show updated categorization
              setTimeout(() => {{
-                 const currentCategoryDropdown = document.querySelector('#category_dropdown select');
+                 const currentCategoryDropdown = document.querySelector('#category_dropdown select') || 
+                                                document.querySelector('select[data-testid="category_dropdown"]') ||
+                                                document.querySelector('[id*="category_dropdown"] select');
                  if (currentCategoryDropdown) {{
                      currentCategoryDropdown.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                     currentCategoryDropdown.dispatchEvent(new Event('input', {{ bubbles: true }}));
                      console.log('✅ Category filter refreshed after backend update');
+                 }} else {{
+                     console.log('❌ Category dropdown not found for refresh');
                  }}
              }}, 500);
              
