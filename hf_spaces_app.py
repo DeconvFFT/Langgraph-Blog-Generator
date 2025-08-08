@@ -1552,19 +1552,21 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
          }}
          
          // Trigger Gradio update function to update backend state
-         const updateBlogIdInput = document.querySelector('#update_blog_id_input input');
-         const updateTitleInput = document.querySelector('#update_title_input input');
-         const updateContentInput = document.querySelector('#update_content_input textarea');
-         const updateCategoryInput = document.querySelector('#update_category_input input');
-         const updateBtn = document.querySelector('#update_btn');
-         
-         console.log('Update components check:', {{
-             updateBlogIdInput: !!updateBlogIdInput,
-             updateTitleInput: !!updateTitleInput,
-             updateContentInput: !!updateContentInput,
-             updateCategoryInput: !!updateCategoryInput,
-             updateBtn: !!updateBtn
-         }});
+         const updateBlogIdInput = document.querySelector('#update_blog_id_input input') || 
+                                   document.querySelector('#update_blog_id_input textarea') ||
+                                   document.querySelector('[data-testid="update_blog_id_input"] input');
+         const updateTitleInput = document.querySelector('#update_title_input input') ||
+                                 document.querySelector('#update_title_input textarea') ||
+                                 document.querySelector('[data-testid="update_title_input"] input');
+         const updateContentInput = document.querySelector('#update_content_input textarea') ||
+                                    document.querySelector('#update_content_input input') ||
+                                    document.querySelector('[data-testid="update_content_input"] textarea');
+         const updateCategoryInput = document.querySelector('#update_category_input input') ||
+                                     document.querySelector('#update_category_input textarea') ||
+                                     document.querySelector('[data-testid="update_category_input"] input');
+         const updateBtn = document.querySelector('#update_btn') ||
+                          document.querySelector('[data-testid="update_btn"]') ||
+                          document.querySelector('button[data-testid="update_btn"]');
          
          if (updateBlogIdInput && updateTitleInput && updateContentInput && updateCategoryInput && updateBtn) {{
              // Set the values
@@ -1587,14 +1589,8 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
              // Show success message
              alert('Blog updated successfully!');
          }} else {{
-             console.error('❌ Missing update components:', {{
-                 updateBlogIdInput: !!updateBlogIdInput,
-                 updateTitleInput: !!updateTitleInput,
-                 updateContentInput: !!updateContentInput,
-                 updateCategoryInput: !!updateCategoryInput,
-                 updateBtn: !!updateBtn
-             }});
-             alert('Update failed. Missing required components. Please try refreshing the page.');
+             console.error('❌ Update components not found');
+             alert('Update failed. Please try refreshing the page.');
          }}
     }}
     
