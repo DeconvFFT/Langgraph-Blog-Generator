@@ -226,8 +226,8 @@ def create_blog_card(blog: Dict[str, Any]) -> str:
     language = blog.get('language', 'English')
     created_at = blog.get('created_at', 'Unknown date')
     
-    # Truncate content for preview
-    preview = content[:150] + "..." if len(content) > 150 else content
+    # Show first 200 characters as preview (no truncation with ...)
+    preview = content[:200] if len(content) > 200 else content
     
     # Get category color
     category_colors = {
@@ -668,6 +668,9 @@ custom_css = """
     font-size: 1.1rem;
     color: #374151;
     font-family: 'Georgia', serif;
+    min-height: 400px;
+    overflow-y: auto;
+    max-height: 60vh;
 }
 
 .article-content h1, .article-content h2, .article-content h3 {
@@ -720,6 +723,19 @@ custom_css = """
 
 .article-content em {
     font-style: italic;
+}
+
+/* Edit modal specific styles */
+#editModal .modal-content {
+    max-height: 95vh;
+    overflow-y: auto;
+}
+
+#editModal textarea {
+    min-height: 400px;
+    max-height: 60vh;
+    overflow-y: auto;
+    resize: vertical;
 }
 
 /* Responsive grid */
@@ -882,12 +898,10 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
             const category = card.querySelector('div[style*="position: absolute"]').textContent;
             const created_at = card.querySelector('span[style*="color: #9ca3af"]').textContent.replace('📅 ', '');
             
-            // Get content from the preview (this is a limitation, but better than nothing)
-            const preview = card.querySelector('p').textContent;
-            
-            // Try to find the original blog data to get full content
-            const originalBlog = blogsData.find(b => b.id === blogId);
-            const fullContent = originalBlog ? originalBlog.content : (preview + '...');
+            // Always get the full content from the original Python data
+            const originalData = {json.dumps(blogs_storage)};
+            const originalBlog = originalData.find(b => b.id === blogId);
+            const fullContent = originalBlog ? originalBlog.content : '';
             
             newBlogsData.push({{
                 id: blogId,
@@ -1041,7 +1055,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                             </div>
                             <div style="margin-bottom: 16px;">
                                 <label style="display: block; margin-bottom: 8px; font-weight: 600;">Content:</label>
-                                <textarea id="editContent" rows="15" style="
+                                <textarea id="editContent" rows="25" style="
                                     width: 100%;
                                     padding: 12px;
                                     border: 2px solid #e5e7eb;
@@ -1049,6 +1063,9 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                                     font-size: 1rem;
                                     resize: vertical;
                                     font-family: 'Georgia', serif;
+                                    min-height: 500px;
+                                    max-height: 70vh;
+                                    overflow-y: auto;
                                 ">${{fullContent || targetBlog.content}}</textarea>
                             </div>
                             <div style="margin-bottom: 20px;">
