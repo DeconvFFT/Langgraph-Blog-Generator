@@ -629,43 +629,33 @@ def get_blog_by_id(blog_id: str, blogs_storage: List[Dict]) -> Optional[Dict]:
 
 def update_blog(blog_id: str, title: str, content: str, category: str, blogs_storage: List[Dict], current_filter: str) -> tuple:
     """Update a blog using Gradio State"""
-    try:
-        # Update blog
-        updated_blogs = []
-        success = False
-        
-        for blog in blogs_storage:
-            if blog.get('id') == blog_id:
-                updated_blog = blog.copy()
-                updated_blog.update({
-                    'title': clean_title(title), 
-                    'content': clean_content(content), 
-                    'category': category,
-                    'updated_at': datetime.now().strftime("%B %d, %Y")
-                })
-                updated_blogs.append(updated_blog)
-                success = True
-                print(f"✏️ Blog updated successfully: {updated_blog.get('title', 'Untitled')}")
-            else:
-                updated_blogs.append(blog)
-        
-        if success:
-            print(f"✏️ Blog updated successfully. Total blogs: {len(updated_blogs)}")
+    # Update blog
+    updated_blogs = []
+    success = False
+    
+    for blog in blogs_storage:
+        if blog.get('id') == blog_id:
+            updated_blog = blog.copy()
+            updated_blog.update({
+                'title': clean_title(title), 
+                'content': clean_content(content), 
+                'category': category,
+                'updated_at': datetime.now().strftime("%B %d, %Y")
+            })
+            updated_blogs.append(updated_blog)
+            success = True
+            print(f"✏️ Blog updated successfully: {updated_blog.get('title', 'Untitled')}")
         else:
-            print(f"⚠️ Blog update failed for ID: {blog_id}")
-            # Return original data if update failed
-            cards_html = generate_blog_cards(blogs_storage, current_filter)
-            return cards_html, blogs_storage, current_filter
-        
-        # Generate updated cards
-        cards_html = generate_blog_cards(updated_blogs, current_filter)
-        return cards_html, updated_blogs, current_filter
-        
-    except Exception as e:
-        print(f"❌ Error in update_blog: {str(e)}")
-        # Return original data on error
-        cards_html = generate_blog_cards(blogs_storage, current_filter)
-        return cards_html, blogs_storage, current_filter
+            updated_blogs.append(blog)
+    
+    if success:
+        print(f"✏️ Blog updated successfully. Total blogs: {len(updated_blogs)}")
+    else:
+        print(f"⚠️ Blog update failed for ID: {blog_id}")
+    
+    # Generate updated cards
+    cards_html = generate_blog_cards(updated_blogs, current_filter)
+    return cards_html, updated_blogs, current_filter
 
 def check_api_status() -> str:
     """Check if the API is available"""
@@ -925,599 +915,6 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     blogs_storage_state = gr.State(value=[])  # Store blogs data
     current_filter_state = gr.State(value="All")  # Store current filter
     
-    # Add JavaScript for advanced blog management with proper data synchronization
-    gr.HTML("""
-    <script>
-    // Global variables for blog data - synchronized with Python backend
-    let blogsData = [];
-    
-    // Function to update blogs data from Python backend
-    function updateBlogsData(newData) {
-        blogsData = newData;
-    }
-    
-    // Function to get the latest Python data
-    function getLatestPythonData() {
-        // This function will be called to get the most recent data from Python
-        // For now, we'll use the initial data, but in a real implementation,
-        // this would make an AJAX call to get the latest data
-        return [];
-    }
-    
-    // Function to sync JavaScript data with Python data
-    function syncJavaScriptData() {
-        console.log('Syncing JavaScript data with Python data...');
-        const latestData = getLatestPythonData();
-        blogsData = latestData;
-        console.log('JavaScript data synced:', blogsData);
-    }
-    
-    // Function to debug available blogs
-    function debugAvailableBlogs() {
-        console.log('=== DEBUG: Available Blogs ===');
-        console.log('Total blogs in blogsData:', blogsData.length);
-        if (blogsData.length > 0) {
-            console.log('Sample blog:', blogsData[0]);
-        }
-        
-        console.log('Total blog cards in DOM:', document.querySelectorAll('[data-blog-id]').length);
-        document.querySelectorAll('[data-blog-id]').forEach((card, index) => {
-            const blog = findBlogById(card.getAttribute('data-blog-id'));
-            console.log(`  ${index}: ID=${blog.id}, Title="${blog.title}"`);
-        });
-        
-        console.log('=== END DEBUG ===');
-        document.querySelectorAll('[data-blog-id]').forEach((card, index) => {
-            const blog = findBlogById(card.getAttribute('data-blog-id'));
-            console.log(`  ${index}: ID=${blog.id}, Title="${blog.title}"`);
-        });
-    }
-    
-    // Function to find blog by ID from DOM
-    function findBlogById(blogId) {
-        console.log('🔍 Looking for blog with ID:', blogId);
-        
-        // Get the blog card from DOM
-        const blogCard = document.querySelector(`[data-blog-id="${blogId}"]`);
-        if (blogCard) {
-            const blog = {
-                id: blogCard.getAttribute('data-blog-id'),
-                title: blogCard.getAttribute('data-blog-title'),
-                content: blogCard.getAttribute('data-blog-content'),
-                category: blogCard.getAttribute('data-blog-category'),
-                created_at: blogCard.getAttribute('data-blog-created')
-            };
-            
-            console.log('✅ Blog found in DOM:', {
-                id: blog.id,
-                title: blog.title ? blog.title.substring(0, 50) + '...' : 'null',
-                contentLength: blog.content ? blog.content.length : 0,
-                category: blog.category
-            });
-            
-            return blog;
-        }
-        
-        console.log('❌ Blog not found in DOM');
-        return null;
-    }
-    
-    // Function to format content for article display (Medium/Substack style)
-    function formatContentForArticle(content) {
-        if (!content) return '';
-        
-        // Convert newlines to paragraphs and add basic formatting
-        return content
-            .split('\\n\\n')
-            .filter(paragraph => paragraph.trim().length > 0)
-            .map(paragraph => {
-                // Handle headers (simple markdown-style)
-                if (paragraph.startsWith('# ')) {
-                    return `<h1>${paragraph.substring(2)}</h1>`;
-                } else if (paragraph.startsWith('## ')) {
-                    return `<h2>${paragraph.substring(3)}</h2>`;
-                } else if (paragraph.startsWith('### ')) {
-                    return `<h3>${paragraph.substring(4)}</h3>`;
-                } else {
-                    return `<p>${paragraph}</p>`;
-                }
-            })
-            .join('');
-    }
-    
-    // Function to get full blog content - simplified using embedded data
-    function getFullBlogContent(blogId) {
-        console.log('📄 Getting full content for blog ID:', blogId);
-        
-        // Get the blog card from DOM
-        const blogCard = document.querySelector(`[data-blog-id="${blogId}"]`);
-        if (blogCard) {
-            const content = blogCard.getAttribute('data-blog-content');
-            console.log('✅ Content found in DOM, length:', content ? content.length : 0);
-            console.log('📄 Content preview from DOM:', content ? content.substring(0, 200) : 'null');
-            return content;
-        }
-        
-        console.log('❌ Blog card not found in DOM');
-        return '';
-    }
-    
-    function viewBlogModal(blogId) {
-        console.log('Opening view modal for blog ID:', blogId);
-        
-        // Get blog data from DOM
-        const targetBlog = findBlogById(blogId);
-        if (!targetBlog) {
-            console.log('Blog not found in DOM');
-            alert('Blog not found. This might be a temporary issue. Please try refreshing the page.');
-            return;
-        }
-        
-        console.log('Target blog found:', targetBlog);
-        
-        // Get the full content from DOM
-        const fullContent = getFullBlogContent(blogId);
-        console.log('Full content retrieved, length:', fullContent ? fullContent.length : 0);
-        
-        // Use the content we have
-        const contentToDisplay = fullContent || targetBlog.content || '';
-        console.log('Content to display, length:', contentToDisplay.length);
-        
-        // Format content for Medium/Substack style
-        const formattedContent = formatContentForArticle(contentToDisplay);
-        
-        // Create modal content with mobile-friendly design
-        const modalContent = `
-            <div id="viewModal" class="modal" style="display: block;">
-                <div class="modal-content" style="
-                    width: 95%;
-                    max-width: 900px;
-                    max-height: 90vh;
-                    margin: 2% auto;
-                    border-radius: 16px;
-                    background: white;
-                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-                    overflow: hidden;
-                    position: relative;
-                ">
-                    <!-- Header -->
-                    <div style="
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        color: white;
-                        padding: 24px;
-                        position: relative;
-                    ">
-                        <button onclick="closeModal('viewModal')" style="
-                            position: absolute;
-                            top: 16px;
-                            right: 16px;
-                            background: rgba(255, 255, 255, 0.2);
-                            border: none;
-                            color: white;
-                            font-size: 24px;
-                            width: 40px;
-                            height: 40px;
-                            border-radius: 50%;
-                            cursor: pointer;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            transition: background 0.2s ease;
-                        " onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'">
-                            ×
-                        </button>
-                        <h2 style="
-                            margin: 0;
-                            font-size: 1.5rem;
-                            font-weight: 700;
-                            line-height: 1.4;
-                            padding-right: 60px;
-                        ">${targetBlog.title}</h2>
-                        <div style="
-                            margin-top: 12px;
-                            opacity: 0.9;
-                            font-size: 0.9rem;
-                        ">
-                            <span style="
-                                background: rgba(255, 255, 255, 0.2);
-                                padding: 4px 12px;
-                                border-radius: 20px;
-                                margin-right: 12px;
-                            ">${targetBlog.category}</span>
-                            <span>📅 ${targetBlog.created_at || 'Unknown date'}</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Content -->
-                    <div class="article-content" style="
-                        padding: 32px;
-                        max-height: 60vh;
-                        overflow-y: auto;
-                        line-height: 1.8;
-                        font-size: 1.1rem;
-                        color: #374151;
-                    ">
-                        ${formattedContent}
-                    </div>
-                </div>
-                
-                <!-- Background overlay -->
-                <div style="
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: rgba(0, 0, 0, 0.75);
-                    z-index: -1;
-                " onclick="closeModal('viewModal')"></div>
-            </div>
-        `;
-        
-        // Add modal to page
-        document.body.insertAdjacentHTML('beforeend', modalContent);
-        
-        // Prevent body scroll
-        document.body.style.overflow = 'hidden';
-        
-        console.log('View modal opened successfully');
-    }
-    
-    function editBlogModal(blogId) {
-        console.log('Opening edit modal for blog ID:', blogId);
-        
-        // Get blog data from DOM
-        const targetBlog = findBlogById(blogId);
-        if (!targetBlog) {
-            console.log('Blog not found in DOM');
-            alert('Blog not found. This might be a temporary issue. Please try refreshing the page.');
-            return;
-        }
-        
-        console.log('Target blog found for editing:', targetBlog);
-        
-        // Get full content for editing
-        const fullContent = getFullBlogContent(blogId) || targetBlog.content || '';
-        
-        // Create edit modal
-        const modalContent = `
-            <div id="editModal" class="modal" style="display: block;">
-                <div class="modal-content" style="
-                    width: 95%;
-                    max-width: 800px;
-                    max-height: 90vh;
-                    margin: 2% auto;
-                    border-radius: 16px;
-                    background: white;
-                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-                    overflow: hidden;
-                ">
-                    <!-- Header -->
-                    <div style="
-                        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-                        color: white;
-                        padding: 20px;
-                        position: relative;
-                    ">
-                        <button onclick="closeModal('editModal')" style="
-                            position: absolute;
-                            top: 16px;
-                            right: 16px;
-                            background: rgba(255, 255, 255, 0.2);
-                            border: none;
-                            color: white;
-                            font-size: 24px;
-                            width: 40px;
-                            height: 40px;
-                            border-radius: 50%;
-                            cursor: pointer;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                        ">×</button>
-                        <h2 style="margin: 0; font-size: 1.4rem; font-weight: 600;">✏️ Edit Blog Post</h2>
-                    </div>
-                    
-                    <!-- Form -->
-                    <div style="padding: 24px;">
-                        <div style="margin-bottom: 20px;">
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151;">Title</label>
-                            <input type="text" id="editTitle" value="${targetBlog.title}" style="
-                                width: 100%;
-                                padding: 12px;
-                                border: 2px solid #e5e7eb;
-                                border-radius: 8px;
-                                font-size: 1rem;
-                                box-sizing: border-box;
-                            ">
-                        </div>
-                        
-                        <div style="margin-bottom: 20px;">
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151;">Category</label>
-                            <select id="editCategory" style="
-                                width: 100%;
-                                padding: 12px;
-                                border: 2px solid #e5e7eb;
-                                border-radius: 8px;
-                                font-size: 1rem;
-                                box-sizing: border-box;
-                            ">
-                                <option value="Technology" ${targetBlog.category === 'Technology' ? 'selected' : ''}>Technology</option>
-                                <option value="Artificial Intelligence" ${targetBlog.category === 'Artificial Intelligence' ? 'selected' : ''}>Artificial Intelligence</option>
-                                <option value="Machine Learning" ${targetBlog.category === 'Machine Learning' ? 'selected' : ''}>Machine Learning</option>
-                                <option value="Data Science" ${targetBlog.category === 'Data Science' ? 'selected' : ''}>Data Science</option>
-                                <option value="Software Development" ${targetBlog.category === 'Software Development' ? 'selected' : ''}>Software Development</option>
-                                <option value="Health & Wellness" ${targetBlog.category === 'Health & Wellness' ? 'selected' : ''}>Health & Wellness</option>
-                                <option value="Fitness" ${targetBlog.category === 'Fitness' ? 'selected' : ''}>Fitness</option>
-                                <option value="Nutrition" ${targetBlog.category === 'Nutrition' ? 'selected' : ''}>Nutrition</option>
-                                <option value="Mental Health" ${targetBlog.category === 'Mental Health' ? 'selected' : ''}>Mental Health</option>
-                            </select>
-                        </div>
-                        
-                        <div style="margin-bottom: 24px;">
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151;">Content</label>
-                            <textarea id="editContent" style="
-                                width: 100%;
-                                height: 300px;
-                                padding: 12px;
-                                border: 2px solid #e5e7eb;
-                                border-radius: 8px;
-                                font-size: 1rem;
-                                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                                resize: vertical;
-                                box-sizing: border-box;
-                            ">${fullContent}</textarea>
-                        </div>
-                        
-                        <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                            <button onclick="closeModal('editModal')" style="
-                                padding: 12px 24px;
-                                background: #6b7280;
-                                color: white;
-                                border: none;
-                                border-radius: 8px;
-                                cursor: pointer;
-                                font-weight: 600;
-                            ">Cancel</button>
-                            <button onclick="saveBlogEdit('${blogId}')" style="
-                                padding: 12px 24px;
-                                background: #10b981;
-                                color: white;
-                                border: none;
-                                border-radius: 8px;
-                                cursor: pointer;
-                                font-weight: 600;
-                            ">Save Changes</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Background overlay -->
-                <div style="
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: rgba(0, 0, 0, 0.75);
-                    z-index: -1;
-                " onclick="closeModal('editModal')"></div>
-            </div>
-        `;
-        
-        // Add modal to page
-        document.body.insertAdjacentHTML('beforeend', modalContent);
-        
-        // Prevent body scroll
-        document.body.style.overflow = 'hidden';
-        
-        console.log('Edit modal opened successfully');
-    }
-    
-    function deleteBlogConfirm(blogId) {
-        const targetBlog = findBlogById(blogId);
-        if (!targetBlog) {
-            alert('Blog not found.');
-            return;
-        }
-        
-        const confirmed = confirm(`Are you sure you want to delete "${targetBlog.title}"?`);
-        if (confirmed) {
-            console.log('Deleting blog with ID:', blogId);
-            
-            // Remove from DOM immediately
-            const card = document.querySelector(`[data-blog-id="${blogId}"]`);
-            if (card) {
-                card.remove();
-                console.log('Blog card removed from DOM');
-            }
-            
-            // Remove from JavaScript data array
-            const blogIndex = blogsData.findIndex(blog => blog.id === blogId);
-            if (blogIndex !== -1) {
-                blogsData.splice(blogIndex, 1);
-                console.log('Blog removed from JavaScript data array');
-            }
-            
-            // Trigger the hidden delete button to update Gradio state
-            const deleteIdInput = document.querySelector('#delete_blog_id_input input');
-            const deleteBtn = document.querySelector('#delete_btn');
-            
-            if (deleteIdInput && deleteBtn) {
-                deleteIdInput.value = blogId;
-                deleteIdInput.dispatchEvent(new Event('change', { bubbles: true }));
-                deleteBtn.click();
-                console.log('Gradio delete function triggered');
-            } else {
-                console.log('Delete components not found');
-            }
-        }
-    }
-    
-    function closeModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.remove();
-        }
-        
-        // Restore body scroll
-        document.body.style.overflow = 'auto';
-    }
-    
-    function saveBlogEdit(blogId) {
-        const title = document.getElementById('editTitle').value;
-        const content = document.getElementById('editContent').value;
-        const category = document.getElementById('editCategory').value;
-        
-        // Validate inputs
-        if (!title.trim() || !content.trim() || !category || !blogId) {
-            alert('Please fill in all fields and ensure blog ID is valid.');
-            return;
-        }
-        
-        console.log('Saving blog edit:', { blogId, title: title.substring(0, 50) + '...', category });
-        
-        // Close modal first
-        closeModal('editModal');
-        
-                 // Update the blog card in the DOM immediately
-         const blogCard = document.querySelector(`[data-blog-id="${blogId}"]`);
-         if (blogCard) {
-             // Update the title in the card
-             const titleElement = blogCard.querySelector('h3');
-             if (titleElement) {
-                 titleElement.textContent = title;
-             }
-             
-             // Update the category badge
-             const categoryBadge = blogCard.querySelector('div[style*="position: absolute"][style*="top: 16px"][style*="right: 16px"]');
-             if (categoryBadge) {
-                 categoryBadge.textContent = category;
-                 
-                 // Update category badge color
-                 const categoryColors = {
-                     "Technology": "#3B82F6",
-                     "Artificial Intelligence": "#8B5CF6", 
-                     "Machine Learning": "#06B6D4",
-                     "Data Science": "#10B981",
-                     "Software Development": "#F59E0B",
-                     "Health & Wellness": "#EC4899",
-                     "Fitness": "#14B8A6",
-                     "Nutrition": "#F97316",
-                     "Mental Health": "#6366F1"
-                 };
-                 
-                 const newColor = categoryColors[category] || "#3B82F6";
-                 categoryBadge.style.background = newColor;
-             }
-             
-             // Update the content preview
-             const contentPreview = blogCard.querySelector('p[style*="color: #4b5563"]');
-             if (contentPreview) {
-                 const preview = content.length > 200 ? content.substring(0, 200) : content;
-                 contentPreview.textContent = preview;
-             }
-             
-             // Update the data attributes for future reference
-             blogCard.setAttribute('data-blog-title', title);
-             blogCard.setAttribute('data-blog-content', content);
-             blogCard.setAttribute('data-blog-category', category);
-             
-             // Update the JavaScript data array to reflect the changes
-             const blogIndex = blogsData.findIndex(blog => blog.id === blogId);
-             if (blogIndex !== -1) {
-                 blogsData[blogIndex].title = title;
-                 blogsData[blogIndex].content = content;
-                 blogsData[blogIndex].category = category;
-             }
-             
-             console.log('✅ Blog card updated in DOM');
-         }
-         
-         // Trigger Gradio update function to update backend state
-         const updateBlogIdInput = document.querySelector('#update_blog_id_input input');
-         const updateTitleInput = document.querySelector('#update_title_input input');
-         const updateContentInput = document.querySelector('#update_content_input input');
-         const updateCategoryInput = document.querySelector('#update_category_input input');
-         const updateBtn = document.querySelector('#update_btn');
-         
-         console.log('Update components found:', {
-             updateBlogIdInput: !!updateBlogIdInput,
-             updateTitleInput: !!updateTitleInput,
-             updateContentInput: !!updateContentInput,
-             updateCategoryInput: !!updateCategoryInput,
-             updateBtn: !!updateBtn
-         });
-         
-         if (updateBlogIdInput && updateTitleInput && updateContentInput && updateCategoryInput && updateBtn) {
-             try {
-                 // Set the values
-                 updateBlogIdInput.value = blogId;
-                 updateTitleInput.value = title;
-                 updateContentInput.value = content;
-                 updateCategoryInput.value = category;
-                 
-                 console.log('Values set in hidden inputs:', {
-                     id: updateBlogIdInput.value,
-                     title: updateTitleInput.value.substring(0, 50) + '...',
-                     category: updateCategoryInput.value
-                 });
-                 
-                 // Trigger change events
-                 [updateBlogIdInput, updateTitleInput, updateContentInput, updateCategoryInput].forEach(input => {
-                     input.dispatchEvent(new Event('input', { bubbles: true }));
-                     input.dispatchEvent(new Event('change', { bubbles: true }));
-                 });
-                 
-                 // Add a small delay before clicking the button
-                 setTimeout(() => {
-                     updateBtn.click();
-                     console.log('✅ Gradio update triggered');
-                 }, 100);
-             } catch (error) {
-                 console.error('❌ Error during Gradio update:', error);
-                 alert('Update failed. Please try again.');
-             }
-         } else {
-             console.error('❌ Missing update components. Update skipped.');
-             alert('Update system not ready. Please refresh the page and try again.');
-         }
-             
-         // After a short delay, refresh the category filter to show updated categorization
-         setTimeout(() => {
-                 const currentCategoryDropdown = document.querySelector('#category_dropdown select') || 
-                                                document.querySelector('select[data-testid="category_dropdown"]') ||
-                                                document.querySelector('[id*="category_dropdown"] select');
-                 if (currentCategoryDropdown) {
-                     currentCategoryDropdown.dispatchEvent(new Event('change', { bubbles: true }));
-                     currentCategoryDropdown.dispatchEvent(new Event('input', { bubbles: true }));
-                     console.log('✅ Category filter refreshed after backend update');
-                 } else {
-                     console.log('❌ Category dropdown not found for refresh');
-                 }
-             }, 500);
-             
-             // Show success message
-             alert('Blog updated successfully!');
-         } else {
-             console.error('Update components not found');
-             alert('Update system not ready. Please refresh the page.');
-         }
-     }
-    
-    // Initialize when page loads
-    window.addEventListener('load', function() {
-        console.log('Page loaded, initializing blog management system...');
-        
-        // Small delay to ensure Gradio components are ready
-        setTimeout(() => {
-            syncJavaScriptData();
-            debugAvailableBlogs();
-        }, 500);
-    })
-    </script>
-    """)
-    
     gr.HTML("""
     <div style="text-align: center; margin-bottom: 40px;">
         <h1 style="
@@ -1690,6 +1087,561 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         outputs=[blogs_data_output]
     )
     
+    # Add JavaScript for advanced blog management with proper data synchronization
+    gr.HTML("""
+    <script>
+    // Global variables for blog data - synchronized with Python backend
+    let blogsData = [];
+    
+    // Function to update blogs data from Python backend
+    function updateBlogsData(newData) {
+        blogsData = newData;
+    }
+    
+    // Function to get the latest Python data
+    function getLatestPythonData() {
+        // This function will be called to get the most recent data from Python
+        // For now, we'll use the initial data, but in a real implementation,
+        // this would make an AJAX call to get the latest data
+        return [];
+    }
+    
+    // Function to sync JavaScript data with Python data
+    function syncJavaScriptData() {
+        console.log('Syncing JavaScript data with Python data...');
+        const latestData = getLatestPythonData();
+        blogsData = latestData;
+        console.log('JavaScript data synced:', blogsData);
+    }
+    
+    // Function to debug available blogs
+    function debugAvailableBlogs() {
+        console.log('=== DEBUG: Available Blogs ===');
+        console.log('Current JavaScript data:', blogsData);
+        
+        const latestData = getLatestPythonData();
+        console.log('Latest Python data:', latestData);
+        
+        console.log('Blogs in current data:');
+        blogsData.forEach((blog, index) => {
+            console.log(`  ${index}: ID=${blog.id}, Title="${blog.title}"`);
+        });
+        
+        console.log('Blogs in latest data:');
+        latestData.forEach((blog, index) => {
+            console.log(`  ${index}: ID=${blog.id}, Title="${blog.title}"`);
+        });
+        console.log('=== END DEBUG ===');
+    }
+    
+    // Function to find blog by ID - simplified using embedded data
+    function findBlogById(blogId) {
+        console.log('🔍 Finding blog with ID:', blogId);
+        
+        // Find the blog card in the DOM
+        const blogCard = document.querySelector(`[data-blog-id="${blogId}"]`);
+        if (blogCard) {
+            console.log('✅ Found blog card in DOM:', blogCard);
+            
+            // Extract data from the card's data attributes
+            const blog = {
+                id: blogCard.getAttribute('data-blog-id'),
+                title: blogCard.getAttribute('data-blog-title'),
+                content: blogCard.getAttribute('data-blog-content'),
+                topic: blogCard.getAttribute('data-blog-topic'),
+                language: blogCard.getAttribute('data-blog-language'),
+                category: blogCard.getAttribute('data-blog-category'),
+                created_at: blogCard.getAttribute('data-blog-created')
+            };
+            
+            console.log('📋 Extracted blog data from DOM:', blog);
+            console.log('📄 Content length from DOM:', blog.content ? blog.content.length : 0);
+            console.log('📄 Content preview from DOM:', blog.content ? blog.content.substring(0, 200) : 'null');
+            
+            return blog;
+        }
+        
+        console.log('❌ Blog card not found in DOM');
+        console.log('🔍 Available blog cards:', document.querySelectorAll('.blog-card').length);
+        console.log('🔍 Available blog IDs:', Array.from(document.querySelectorAll('.blog-card')).map(card => card.getAttribute('data-blog-id')));
+        return null;
+    }
+    
+    // Function to get full blog content - simplified using embedded data
+    function getFullBlogContent(blogId) {
+        console.log('📄 Getting full content for blog ID:', blogId);
+        
+        // Get the blog card from DOM
+        const blogCard = document.querySelector(`[data-blog-id="${blogId}"]`);
+        if (blogCard) {
+            const content = blogCard.getAttribute('data-blog-content');
+            console.log('✅ Content found in DOM, length:', content ? content.length : 0);
+            console.log('📄 Content preview from DOM:', content ? content.substring(0, 200) : 'null');
+            return content;
+        }
+        
+        console.log('❌ Blog card not found in DOM');
+        return '';
+    }
+    
+    function viewBlogModal(blogId) {
+        console.log('Opening view modal for blog ID:', blogId);
+        
+        // Get blog data from DOM
+        const targetBlog = findBlogById(blogId);
+        if (!targetBlog) {
+            console.log('Blog not found in DOM');
+            alert('Blog not found. This might be a temporary issue. Please try refreshing the page.');
+            return;
+        }
+        
+        console.log('Target blog found:', targetBlog);
+        
+        // Get the full content from DOM
+        const fullContent = getFullBlogContent(blogId);
+        console.log('Full content retrieved, length:', fullContent ? fullContent.length : 0);
+        
+        // Use the content we have
+        const contentToDisplay = fullContent || targetBlog.content || '';
+        console.log('Content to display, length:', contentToDisplay.length);
+        
+        // Format content for Medium/Substack style
+        const formattedContent = formatContentForArticle(contentToDisplay);
+        
+        // Create modal content with mobile-friendly design
+        const modalContent = `
+            <div id="viewModal" class="modal" style="display: block;">
+                <div class="modal-content" style="
+                    width: 95%;
+                    max-width: 900px;
+                    max-height: 90vh;
+                    margin: 2% auto;
+                    border-radius: 16px;
+                    overflow-y: auto;
+                ">
+                    <span class="close" onclick="closeModal('viewModal')" style="
+                        position: absolute;
+                        right: 20px;
+                        top: 15px;
+                        font-size: 28px;
+                        font-weight: bold;
+                        cursor: pointer;
+                        z-index: 1001;
+                        color: #aaa;
+                    ">&times;</span>
+                    
+                    <!-- Article Header -->
+                    <div class="article-header" style="
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 30px 20px;
+                        border-radius: 16px 16px 0 0;
+                        position: relative;
+                    ">
+                        <h1 class="article-title" style="
+                            font-size: clamp(1.5rem, 4vw, 2.5rem);
+                            font-weight: 800;
+                            line-height: 1.2;
+                            margin-bottom: 20px;
+                            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                        ">${targetBlog.title}</h1>
+                        <div class="article-meta" style="
+                            display: flex;
+                            flex-wrap: wrap;
+                            gap: 10px;
+                            font-size: 0.9rem;
+                            opacity: 0.9;
+                        ">
+                            <span>📌 ${targetBlog.topic}</span>
+                            <span>🌍 ${targetBlog.language}</span>
+                            <span>🏷️ ${targetBlog.category}</span>
+                            <span>📅 ${targetBlog.created_at}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Article Content -->
+                    <div class="article-content" style="
+                        padding: 30px 20px;
+                        line-height: 1.8;
+                        font-size: 1.1rem;
+                        color: #374151;
+                        font-family: 'Georgia', serif;
+                        min-height: 400px;
+                        overflow-y: auto;
+                        max-height: 60vh;
+                    ">
+                        ${formattedContent}
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div style="
+                        padding: 20px;
+                        border-top: 1px solid #e5e7eb;
+                        text-align: center;
+                        background: #f9fafb;
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 10px;
+                        justify-content: center;
+                    ">
+                        <button onclick="editBlogModal('${blogId}')" style="
+                            background: #f59e0b;
+                            color: white;
+                            border: none;
+                            padding: 12px 20px;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            font-size: 0.9rem;
+                            font-weight: 600;
+                            min-width: 120px;
+                        ">
+                            ✏️ Edit Article
+                        </button>
+                        <button onclick="closeModal('viewModal')" style="
+                            background: #6b7280;
+                            color: white;
+                            border: none;
+                            padding: 12px 20px;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            font-size: 0.9rem;
+                            font-weight: 600;
+                            min-width: 120px;
+                        ">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalContent);
+    }
+    
+    function editBlogModal(blogId) {
+        console.log('Opening edit modal for blog ID:', blogId);
+        
+        // Get blog data from DOM
+        const targetBlog = findBlogById(blogId);
+        if (!targetBlog) {
+            console.log('Blog not found in DOM');
+            alert('Blog not found. This might be a temporary issue. Please try refreshing the page.');
+            return;
+        }
+        
+        console.log('Target blog for edit found:', targetBlog);
+        
+        // Get the full content from DOM
+        const fullContent = getFullBlogContent(blogId);
+        console.log('Full content for edit, length:', fullContent ? fullContent.length : 0);
+        
+        const modalContent = `
+            <div id="editModal" class="modal" style="display: block;">
+                <div class="modal-content" style="
+                    width: 95%;
+                    max-width: 800px;
+                    max-height: 95vh;
+                    margin: 2% auto;
+                    border-radius: 16px;
+                    overflow-y: auto;
+                ">
+                    <span class="close" onclick="closeModal('editModal')" style="
+                        position: absolute;
+                        right: 20px;
+                        top: 15px;
+                        font-size: 28px;
+                        font-weight: bold;
+                        cursor: pointer;
+                        z-index: 1001;
+                        color: #aaa;
+                    ">&times;</span>
+                    <div style="padding: 30px 20px;">
+                        <h2 style="color: #1f2937; margin-bottom: 20px; font-size: clamp(1.2rem, 3vw, 1.5rem);">Edit Blog</h2>
+                        <form id="editForm">
+                            <div style="margin-bottom: 16px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Title:</label>
+                                <input type="text" id="editTitle" value="${targetBlog.title}" style="
+                                    width: 100%;
+                                    padding: 12px;
+                                    border: 2px solid #e5e7eb;
+                                    border-radius: 8px;
+                                    font-size: 1rem;
+                                    box-sizing: border-box;
+                                ">
+                            </div>
+                            <div style="margin-bottom: 16px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Content:</label>
+                                <textarea id="editContent" rows="20" style="
+                                    width: 100%;
+                                    padding: 12px;
+                                    border: 2px solid #e5e7eb;
+                                    border-radius: 8px;
+                                    font-size: 1rem;
+                                    resize: vertical;
+                                    font-family: 'Georgia', serif;
+                                    min-height: 400px;
+                                    max-height: 50vh;
+                                    overflow-y: auto;
+                                    box-sizing: border-box;
+                                ">${fullContent || targetBlog.content || ''}</textarea>
+                            </div>
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Category:</label>
+                                <select id="editCategory" style="
+                                    width: 100%;
+                                    padding: 12px;
+                                    border: 2px solid #e5e7eb;
+                                    border-radius: 8px;
+                                    font-size: 1rem;
+                                    box-sizing: border-box;
+                                ">
+                                    <option value="Technology" ${targetBlog.category === 'Technology' ? 'selected' : ''}>Technology</option>
+                                    <option value="Artificial Intelligence" ${targetBlog.category === 'Artificial Intelligence' ? 'selected' : ''}>Artificial Intelligence</option>
+                                    <option value="Machine Learning" ${targetBlog.category === 'Machine Learning' ? 'selected' : ''}>Machine Learning</option>
+                                    <option value="Data Science" ${targetBlog.category === 'Data Science' ? 'selected' : ''}>Data Science</option>
+                                    <option value="Software Development" ${targetBlog.category === 'Software Development' ? 'selected' : ''}>Software Development</option>
+                                    <option value="Health & Wellness" ${targetBlog.category === 'Health & Wellness' ? 'selected' : ''}>Health & Wellness</option>
+                                    <option value="Fitness" ${targetBlog.category === 'Fitness' ? 'selected' : ''}>Fitness</option>
+                                    <option value="Nutrition" ${targetBlog.category === 'Nutrition' ? 'selected' : ''}>Nutrition</option>
+                                    <option value="Mental Health" ${targetBlog.category === 'Mental Health' ? 'selected' : ''}>Mental Health</option>
+                                </select>
+                            </div>
+                            <div style="text-align: center; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+                                <button type="button" onclick="saveBlogEdit('${blogId}')" style="
+                                    background: #10b981;
+                                    color: white;
+                                    border: none;
+                                    padding: 12px 20px;
+                                    border-radius: 8px;
+                                    cursor: pointer;
+                                    font-size: 0.9rem;
+                                    font-weight: 600;
+                                    min-width: 120px;
+                                ">
+                                    💾 Save Changes
+                                </button>
+                                <button type="button" onclick="closeModal('editModal')" style="
+                                    background: #6b7280;
+                                    color: white;
+                                    border: none;
+                                    padding: 12px 20px;
+                                    border-radius: 8px;
+                                    cursor: pointer;
+                                    font-size: 0.9rem;
+                                    font-weight: 600;
+                                    min-width: 120px;
+                                ">
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalContent);
+    }
+    
+    function deleteBlogConfirm(blogId) {
+        if (confirm('Are you sure you want to delete this blog? This action cannot be undone.')) {
+            // Remove from JavaScript data
+            blogsData = blogsData.filter(blog => blog.id !== blogId);
+            
+            // Remove the card from the DOM
+            const card = document.querySelector(`[data-blog-id="${blogId}"]`);
+            if (card) {
+                card.remove();
+            }
+            
+            // Trigger Gradio delete function to update backend
+            const deleteBtn = document.querySelector('#delete_btn');
+            if (deleteBtn) {
+                // Set the blog ID and trigger delete
+                const blogIdInput = document.querySelector('#blog_id_input');
+                if (blogIdInput) {
+                    blogIdInput.value = blogId;
+                }
+                deleteBtn.click();
+            }
+            
+            // Show success message
+            alert('Blog deleted successfully!');
+        }
+    }
+    
+    function closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.remove();
+        }
+    }
+    
+    function saveBlogEdit(blogId) {
+        const title = document.getElementById('editTitle').value;
+        const content = document.getElementById('editContent').value;
+        const category = document.getElementById('editCategory').value;
+        
+        // Close modal first
+        closeModal('editModal');
+        
+                 // Update the blog card in the DOM immediately
+         const blogCard = document.querySelector(`[data-blog-id="${blogId}"]`);
+         if (blogCard) {
+             // Update the title in the card
+             const titleElement = blogCard.querySelector('h3');
+             if (titleElement) {
+                 titleElement.textContent = title;
+             }
+             
+             // Update the category badge
+             const categoryBadge = blogCard.querySelector('div[style*="position: absolute"][style*="top: 16px"][style*="right: 16px"]');
+             if (categoryBadge) {
+                 categoryBadge.textContent = category;
+                 
+                 // Update category badge color
+                 const categoryColors = {
+                     "Technology": "#3B82F6",
+                     "Artificial Intelligence": "#8B5CF6", 
+                     "Machine Learning": "#06B6D4",
+                     "Data Science": "#10B981",
+                     "Software Development": "#F59E0B",
+                     "Health & Wellness": "#EC4899",
+                     "Fitness": "#14B8A6",
+                     "Nutrition": "#F97316",
+                     "Mental Health": "#6366F1"
+                 };
+                 
+                 const newColor = categoryColors[category] || "#3B82F6";
+                 categoryBadge.style.background = newColor;
+             }
+             
+             // Update the content preview
+             const contentPreview = blogCard.querySelector('p[style*="color: #4b5563"]');
+             if (contentPreview) {
+                 const preview = content.length > 200 ? content.substring(0, 200) : content;
+                 contentPreview.textContent = preview;
+             }
+             
+             // Update the data attributes for future reference
+             blogCard.setAttribute('data-blog-title', title);
+             blogCard.setAttribute('data-blog-content', content);
+             blogCard.setAttribute('data-blog-category', category);
+             
+             // Update the JavaScript data array to reflect the changes
+             const blogIndex = blogsData.findIndex(blog => blog.id === blogId);
+             if (blogIndex !== -1) {
+                 blogsData[blogIndex].title = title;
+                 blogsData[blogIndex].content = content;
+                 blogsData[blogIndex].category = category;
+             }
+             
+             // Trigger Gradio category filter refresh to update the view properly
+             const currentCategoryDropdown = document.querySelector('#category_dropdown select');
+             if (currentCategoryDropdown) {
+                 // Trigger change event to refresh the category filter
+                 currentCategoryDropdown.dispatchEvent(new Event('change', { bubbles: true }));
+                 console.log('✅ Category filter refreshed after blog update');
+             }
+             
+             console.log('✅ Blog card updated in DOM and category filtering applied');
+         }
+         
+         // Trigger Gradio update function to update backend state
+         const updateBlogIdInput = document.querySelector('#update_blog_id_input input');
+         const updateTitleInput = document.querySelector('#update_title_input input');
+         const updateContentInput = document.querySelector('#update_content_input input');
+         const updateCategoryInput = document.querySelector('#update_category_input input');
+         const updateBtn = document.querySelector('#update_btn');
+         
+         if (updateBlogIdInput && updateTitleInput && updateContentInput && updateCategoryInput && updateBtn) {
+             // Set the values
+             updateBlogIdInput.value = blogId;
+             updateTitleInput.value = title;
+             updateContentInput.value = content;
+             updateCategoryInput.value = category;
+             
+             // Trigger change events
+             [updateBlogIdInput, updateTitleInput, updateContentInput, updateCategoryInput].forEach(input => {
+                 input.dispatchEvent(new Event('input', { bubbles: true }));
+                 input.dispatchEvent(new Event('change', { bubbles: true }));
+             });
+             
+             // Trigger the update
+             updateBtn.click();
+             
+             console.log('✅ Gradio update triggered');
+             
+             // Show success message
+             alert('Blog updated successfully!');
+         } else {
+             console.error('Update components not found');
+             alert('Update failed. Please try refreshing the page.');
+         }
+    }
+    
+    // Function to format content for Medium/Substack style
+    function formatContentForArticle(content) {
+        console.log('Formatting content, length:', content ? content.length : 0);
+        console.log('Content preview:', content ? content.substring(0, 100) : 'null');
+        
+        if (!content || content.trim() === '') {
+            console.log('No content provided, showing error message');
+            return '<p style="color: #ef4444; font-style: italic;">⚠️ Content not available. Please try refreshing the page or contact support if the issue persists.</p>';
+        }
+        
+        // Convert markdown-like formatting to HTML
+        let formatted = content
+            // Headers
+            .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+            .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+            .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+            // Bold
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            // Italic
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            // Lists
+            .replace(/^\\* (.*$)/gim, '<li>$1</li>')
+            .replace(/^- (.*$)/gim, '<li>$1</li>')
+            // Line breaks
+            .replace(/\\n\\n/g, '</p><p>')
+            .replace(/\\n/g, '<br>');
+        
+        // Wrap in paragraphs
+        formatted = '<p>' + formatted + '</p>';
+        
+        // Fix list formatting
+        formatted = formatted.replace(/<p><li>/g, '<ul><li>');
+        formatted = formatted.replace(/<\\/li><\\/p>/g, '</li></ul>');
+        
+        console.log('Formatted content length:', formatted.length);
+        return formatted;
+    }
+    
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        if (event.target.classList.contains('modal')) {
+            event.target.remove();
+        }
+    }
+    
+    // Auto-refresh blogs data after page loads
+    window.addEventListener('load', function() {
+        setTimeout(() => {
+            syncJavaScriptData();
+            debugAvailableBlogs();
+        }, 1000);
+    });
+    
+    // Refresh blogs data when new blogs are generated
+    function refreshBlogsData() {
+        setTimeout(() => {
+            syncJavaScriptData();
+            debugAvailableBlogs();
+        }, 500);
+    }
+    </script>
+    """)
 
 # Launch the app
 demo.launch()
