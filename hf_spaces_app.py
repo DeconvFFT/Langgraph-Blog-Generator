@@ -6,6 +6,7 @@ import time
 import os
 from datetime import datetime
 import uuid
+import html
 
 # Configuration
 API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')  # Default to localhost for development
@@ -235,7 +236,7 @@ def categorize_blog(topic: str, content: str) -> str:
     return "Technology"  # Fallback
 
 def create_blog_card(blog: Dict[str, Any]) -> str:
-    """Create HTML card for a blog with 4-column grid layout"""
+    """Create HTML card for a blog with 4-column grid layout and embedded data"""
     blog_id = blog.get('id', 'unknown')
     title = blog.get('title', 'Untitled')
     content = blog.get('content', 'No content available')
@@ -262,8 +263,19 @@ def create_blog_card(blog: Dict[str, Any]) -> str:
     
     category_color = category_colors.get(category, "#3B82F6")
     
+    # Escape content for safe embedding in HTML
+    escaped_content = html.escape(content)
+    escaped_title = html.escape(title)
+    
     card_html = f"""
-    <div class="blog-card" data-blog-id="{blog_id}" style="
+    <div class="blog-card" data-blog-id="{blog_id}" 
+         data-blog-title="{escaped_title}"
+         data-blog-content="{escaped_content}"
+         data-blog-topic="{html.escape(topic)}"
+         data-blog-language="{html.escape(language)}"
+         data-blog-category="{html.escape(category)}"
+         data-blog-created="{html.escape(created_at)}"
+         style="
         background: white;
         border-radius: 16px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -976,113 +988,65 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         console.log('=== END DEBUG ===');
     }}
     
-    // Function to find blog by ID - simplified
+    // Function to find blog by ID - simplified using embedded data
     function findBlogById(blogId) {{
         console.log('Finding blog with ID:', blogId);
         
-        // First try current JavaScript data
-        let blog = blogsData.find(blog => blog.id === blogId);
-        if (blog) {{
-            console.log('Found blog in current data:', blog);
+        // Find the blog card in the DOM
+        const blogCard = document.querySelector(`[data-blog-id="${{blogId}}"]`);
+        if (blogCard) {{
+            // Extract data from the card's data attributes
+            const blog = {{
+                id: blogCard.getAttribute('data-blog-id'),
+                title: blogCard.getAttribute('data-blog-title'),
+                content: blogCard.getAttribute('data-blog-content'),
+                topic: blogCard.getAttribute('data-blog-topic'),
+                language: blogCard.getAttribute('data-blog-language'),
+                category: blogCard.getAttribute('data-blog-category'),
+                created_at: blogCard.getAttribute('data-blog-created')
+            }};
+            console.log('Found blog in DOM:', blog);
             return blog;
         }}
         
-        // If not found, sync data and try again
-        console.log('Blog not found in current data, syncing...');
-        syncJavaScriptData();
-        blog = blogsData.find(blog => blog.id === blogId);
-        if (blog) {{
-            console.log('Found blog after sync:', blog);
-            return blog;
-        }}
-        
-        console.log('Blog not found in any data source');
+        console.log('Blog card not found in DOM');
         return null;
     }}
     
-    // Function to refresh blogs data from the current page state
-    function refreshBlogsDataFromPage() {{
-        // This function will be called after new blogs are generated
-        // to sync the JavaScript data with the Python backend
-        console.log('Refreshing blogs data from page state...');
-        
-        // Get all blog cards from the page
-        const blogCards = document.querySelectorAll('.blog-card');
-        console.log('Found blog cards:', blogCards.length);
-        
-        const newBlogsData = [];
-        
-        blogCards.forEach((card, index) => {{
-            const blogId = card.getAttribute('data-blog-id');
-            const title = card.querySelector('h3').textContent;
-            const topic = card.querySelector('span').textContent.replace('📌 ', '');
-            const language = card.querySelectorAll('span')[1].textContent.replace('🌍 ', '');
-            const category = card.querySelector('div[style*="position: absolute"]').textContent;
-            const created_at = card.querySelector('span[style*="color: #9ca3af"]').textContent.replace('📅 ', '');
-            
-            console.log(`Card ${{index}}:`, {{ blogId, title, topic, language, category, created_at }});
-            
-            // Get the full content from the latest Python data
-            const latestData = getLatestPythonData();
-            const originalBlog = latestData.find(b => b.id === blogId);
-            const fullContent = originalBlog ? originalBlog.content : '';
-            
-            console.log(`Card ${{index}} content length:`, fullContent ? fullContent.length : 0);
-            
-            newBlogsData.push({{
-                id: blogId,
-                title: title,
-                content: fullContent,
-                topic: topic,
-                language: language,
-                category: category,
-                created_at: created_at
-            }});
-        }});
-        
-        blogsData = newBlogsData;
-        console.log('Blogs data refreshed:', blogsData);
-        console.log('Total blogs in data:', blogsData.length);
-    }}
-    
-    // Function to get full blog content - simplified approach
+    // Function to get full blog content - simplified using embedded data
     function getFullBlogContent(blogId) {{
         console.log('Getting full content for blog ID:', blogId);
         
-        // Get the full content from the latest Python data
-        const latestData = getLatestPythonData();
-        console.log('Latest Python data:', latestData);
-        
-        const originalBlog = latestData.find(b => b.id === blogId);
-        console.log('Found blog in latest data:', originalBlog);
-        
-        if (originalBlog && originalBlog.content) {{
-            console.log('Content length from latest data:', originalBlog.content.length);
-            return originalBlog.content;
+        // Get the blog card from DOM
+        const blogCard = document.querySelector(`[data-blog-id="${{blogId}}"]`);
+        if (blogCard) {{
+            const content = blogCard.getAttribute('data-blog-content');
+            console.log('Content length from DOM:', content ? content.length : 0);
+            return content;
         }}
         
-        console.log('No content found for blog ID:', blogId);
+        console.log('Blog card not found in DOM');
         return '';
     }}
     
     function viewBlogModal(blogId) {{
         console.log('Opening view modal for blog ID:', blogId);
         
-        // Get blog metadata from current data or latest data
-        let targetBlog = findBlogById(blogId);
+        // Get blog data from DOM
+        const targetBlog = findBlogById(blogId);
         if (!targetBlog) {{
-            console.log('Blog not found in any data source. Available blogs:', getLatestPythonData());
+            console.log('Blog not found in DOM');
             alert('Blog not found. This might be a temporary issue. Please try refreshing the page.');
             return;
         }}
         
         console.log('Target blog found:', targetBlog);
         
-        // Always get the full content directly from latest Python data
+        // Get the full content from DOM
         const fullContent = getFullBlogContent(blogId);
         console.log('Full content retrieved, length:', fullContent ? fullContent.length : 0);
         
-        // Use the content we have (prioritize fullContent, then targetBlog.content)
+        // Use the content we have
         const contentToDisplay = fullContent || targetBlog.content || '';
         console.log('Content to display, length:', contentToDisplay.length);
         
@@ -1154,17 +1118,17 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     function editBlogModal(blogId) {{
         console.log('Opening edit modal for blog ID:', blogId);
         
-        // Get blog metadata from current data or latest data
-        let targetBlog = findBlogById(blogId);
+        // Get blog data from DOM
+        const targetBlog = findBlogById(blogId);
         if (!targetBlog) {{
-            console.log('Blog not found in any data source. Available blogs:', getLatestPythonData());
+            console.log('Blog not found in DOM');
             alert('Blog not found. This might be a temporary issue. Please try refreshing the page.');
             return;
         }}
         
         console.log('Target blog for edit found:', targetBlog);
         
-        // Always get the full content directly from latest Python data
+        // Get the full content from DOM
         const fullContent = getFullBlogContent(blogId);
         console.log('Full content for edit, length:', fullContent ? fullContent.length : 0);
         
