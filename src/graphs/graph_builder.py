@@ -50,7 +50,7 @@ class GraphBuilder:
                 print(f"📝 Title: {state.blog.title}")
             if state.blog and state.blog.content:
                 print(f"📄 Content: {len(state.blog.content)} characters generated")
-        
+            
         return "END"
         
     def build_topic_graph(self):
@@ -88,6 +88,64 @@ class GraphBuilder:
 
         return self.graph
     
+    def build_language_graph(self):
+        """
+        Build a graph for blog generation with inputs topic and language
+        """
+        # Initialize blog node with retry configuration
+        self.blog_node_obj = BlogNode(self.llm, max_retries=3)
+        
+        # Add nodes
+        self.graph.add_node('title_creation', self.blog_node_obj.title_creation)
+        self.graph.add_node('content_generation', self.blog_node_obj.content_generation)
+        self.graph.add_node('spanish_translation', self.blog_node_obj.translation)
+        self.graph.add_node('hindi_translation', self.blog_node_obj.translation)
+        self.graph.add_node('route', self.blog_node_obj.route)
+       
+        # Add conditional edges for better flow control
+        self.graph.add_edge(START, 'title_creation')
+        
+        # Conditional edge from title_creation
+        self.graph.add_conditional_edges(
+            'title_creation',
+            self._should_continue_to_content,
+            {
+                'content_generation': 'content_generation',
+                'END': END
+            }
+        )
+        
+        self.graph.add_edge('content_generation', 'route')
+        
+        # Conditional edge from routing to translation
+        self.graph.add_conditional_edges(
+            'route',
+            self.blog_node_obj.route_decision,
+            {
+                'hindi': 'hindi_translation',
+                'spanish': 'spanish_translation',
+                'END': END
+            }
+        )
+        
+        # Conditional edges from translations to end
+        self.graph.add_conditional_edges(
+            'hindi_translation',
+            self._should_end_graph,
+            {
+                'END': END
+            }
+        )
+        self.graph.add_conditional_edges(
+            'spanish_translation',
+            self._should_end_graph,
+            {
+                'END': END
+            }
+        )
+        
+        return self.graph
+    
     def setup_graph(self, usecase: str):
         """
         Setup and compile a graph based on the specified use case
@@ -103,11 +161,7 @@ class GraphBuilder:
         """
         if usecase == 'topic':
             return self.build_topic_graph().compile()
+        elif usecase == 'language':
+            return self.build_language_graph().compile()
         else:
-            raise ValueError(f"❌ Unsupported use case: {usecase}. Supported cases: 'topic'")
-        
-
-## for Langsmith debugging
-llm = GroqLLM().get_llm()
-graph_builder = GraphBuilder(llm)
-graph = graph_builder.build_topic_graph().compile()
+            raise ValueError(f"❌ Unsupported use case: {usecase}. Supported cases: 'topic', 'language'")

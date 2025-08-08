@@ -1,3 +1,4 @@
+from langchain_core.messages import HumanMessage, SystemMessage
 from src.states.blogstate import BlogState, Blog
 import time
 
@@ -252,3 +253,123 @@ class BlogNode:
             
         return "CONTINUE"
         
+    def translation(self, state: BlogState):
+        """
+        Translate the content to specified language
+
+        Args:
+            state (BlogState): Current state of the content translation graph
+        """
+        try:
+            # Reset error state
+            state.error = None
+            
+            # Validate prerequisites
+            if not state.blog or not state.blog.content:
+                return {'error': 'No content available for translation'}
+            
+            if not state.current_language:
+                return {'error': 'No target language specified'}
+            
+            # Generate translation with retry logic
+            while state.retry_count < self.max_retries:
+                try:
+                    translation_prompt = """
+                        Translate the following blog content into {current_language}.
+                        
+                        Requirements:
+                        - Maintain the original tone, style, and formatting
+                        - Adapt cultural references and idioms appropriately
+                        - Preserve all Markdown formatting
+                        - Keep the same structure and flow
+                        
+                        ORIGINAL CONTENT:
+                        {blog_content}
+                        
+                        TRANSLATED CONTENT:
+                    """
+                    
+                    system_message = translation_prompt.format(
+                        current_language=state.current_language,
+                        blog_content=state.blog.content
+                    )
+                    
+                    response = self.llm.invoke(system_message)
+                    
+                    # Validate response
+                    if not response or not response.content or not response.content.strip():
+                        raise Exception("LLM returned empty translation")
+                    
+                    translated_content = response.content.strip()
+                    
+                    # Update state
+                    state.blog.content = translated_content
+                    state.retry_count = 0  # Reset retry count on success
+                    
+                    print(f"✅ Content translated to {state.current_language} successfully")
+                    return {
+                        'blog': {
+                            'title': state.blog.title,
+                            'content': translated_content
+                        },
+                        'current_language': state.current_language
+                    }
+                    
+                except Exception as e:
+                    state.retry_count += 1
+                    error_response = self._handle_llm_error(e, f"translation to {state.current_language}", state)
+                    
+                    if 'error' in error_response:
+                        return error_response
+                    elif 'skip' in error_response:
+                        print(f"⏭️ Skipping translation to {state.current_language}")
+                        return {
+                            'blog': {
+                                'title': state.blog.title,
+                                'content': f"Translation to {state.current_language} could not be completed."
+                            },
+                            'current_language': state.current_language
+                        }
+                    elif 'retry' in error_response:
+                        time.sleep(1)  # Brief pause before retry
+                        continue
+            
+            # If we get here, max retries exceeded
+            return {'error': f'Translation to {state.current_language} failed after maximum retries'}
+            
+        except Exception as e:
+            return {'error': f'Unexpected error in translation: {str(e)}'}
+
+    def route(self, state: BlogState):
+        """
+        Route function to pass through the current language
+        
+        Args:
+            state (BlogState): Current state
+            
+        Returns:
+            dict: State with current language
+        """
+        return {'current_language': state.current_language}
+    
+    def route_decision(self, state: BlogState) -> str:
+        """
+        Route the content to their respective translation function
+
+        Args:
+            state (BlogState): Current state of the content translation graph
+            
+        Returns:
+            str: Target language for translation
+        """
+        if not state.current_language:
+            return "END"
+        
+        language = state.current_language.lower()
+        
+        if language in ['hindi', 'spanish']:
+            return language
+        else:
+            # For unsupported languages, end the graph
+            print(f"⚠️ Unsupported language: {language}. Ending graph.")
+            return "END"

@@ -73,7 +73,10 @@ async def create_blogs(blog_request: BlogRequest):
         # Initialize graph
         try:
             graph_builder = GraphBuilder(llm)
-            graph = graph_builder.setup_graph(usecase='topic')
+            if blog_request.language and blog_request.topic:
+                graph = graph_builder.setup_graph(usecase='language')
+            else:
+                graph = graph_builder.setup_graph(usecase='topic')
             logger.info("✅ Graph initialized successfully")
         except Exception as e:
             logger.error(f"❌ Failed to initialize graph: {str(e)}")
@@ -167,10 +170,14 @@ async def root():
 
 
 if __name__ == '__main__':
+    # Get port from environment or default to 8000
+    port = int(os.getenv('PORT', 8000))
+    host = os.getenv('HOST', '0.0.0.0')
+    
     uvicorn.run(
         "app:app", 
-        host='0.0.0.0', 
-        port=8000, 
-        reload=True,
+        host=host,
+        port=port,
+        reload=False,  # Disable reload in production
         log_level="info"
     )

@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  blog-generator-api:
+    build: .
+    container_name: blog-generator-api
+    ports:
+      - "8000:8000"
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  blog-generator-ui:
+    build: .
+    container_name: blog-generator-ui
+    ports:
+      - "7860:7860"
+    environment:
+      - API_BASE_URL=http://blog-generator-api:8000
+    depends_on:
+      - blog-generator-api
+    restart: unless-stopped
+    command: ["python", "gradio_app.py"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  default:
+    name: blog-generator-network
