@@ -157,15 +157,60 @@ def generate_blog(topic: str, language: str) -> Dict[str, Any]:
         print(f"🌐 Making API request to: {API_ENDPOINT}")
         print(f"📤 Request payload: {payload}")
         
-        response = requests.post(
-            API_ENDPOINT,
-            json=payload,
-            headers={"Content-Type": "application/json"},
-            timeout=300
-        )
+        # Enhanced request with retry logic and better error handling
+        max_retries = 3
+        retry_delay = 2
         
-        response.raise_for_status()
-        api_response = response.json()
+        for attempt in range(max_retries):
+            try:
+                print(f"🔄 API request attempt {attempt + 1}/{max_retries}")
+                
+                response = requests.post(
+                    API_ENDPOINT,
+                    json=payload,
+                    headers={"Content-Type": "application/json"},
+                    timeout=300,
+                    stream=False  # Disable streaming to avoid BodyStreamBuffer issues
+                )
+                
+                response.raise_for_status()
+                api_response = response.json()
+                
+                print(f"✅ API request successful on attempt {attempt + 1}")
+                break
+                
+            except requests.exceptions.ConnectionError as e:
+                print(f"⚠️ Connection error on attempt {attempt + 1}: {str(e)}")
+                if attempt < max_retries - 1:
+                    print(f"🔄 Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+                    continue
+                else:
+                    raise
+                    
+            except requests.exceptions.Timeout as e:
+                print(f"⚠️ Timeout error on attempt {attempt + 1}: {str(e)}")
+                if attempt < max_retries - 1:
+                    print(f"🔄 Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+                    continue
+                else:
+                    raise
+                    
+            except Exception as e:
+                if "BodyStreamBuffer" in str(e) or "aborted" in str(e).lower():
+                    print(f"⚠️ Stream buffer error on attempt {attempt + 1}: {str(e)}")
+                    if attempt < max_retries - 1:
+                        print(f"🔄 Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                        retry_delay *= 2
+                        continue
+                    else:
+                        raise
+                else:
+                    raise
         
         print(f"📥 API Response Status: {response.status_code}")
         print(f"📥 API Response: {api_response}")
@@ -198,11 +243,19 @@ def generate_blog(topic: str, language: str) -> Dict[str, Any]:
                 "message": f"API returned error {e.response.status_code}: {e.response.text}"
             }
     except Exception as e:
-        return {
-            "success": False,
-            "error": "Request failed",
-            "message": f"Error: {str(e)}"
-        }
+        error_str = str(e)
+        if "BodyStreamBuffer" in error_str or "aborted" in error_str.lower():
+            return {
+                "success": False,
+                "error": "Stream buffer error",
+                "message": "The request was interrupted (BodyStreamBuffer aborted). This usually happens due to network issues or server problems. Please try again in a moment."
+            }
+        else:
+            return {
+                "success": False,
+                "error": "Request failed",
+                "message": f"Error: {error_str}"
+            }
 
 def check_duplicate_blog(title: str, blogs_storage: List[Dict]) -> bool:
     """Check if a blog with the same title already exists"""
@@ -1091,6 +1144,10 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     edit_trigger_id = gr.Textbox(visible=False, elem_id="edit_trigger_id")
     edit_trigger_btn = gr.Button("Edit Trigger", visible=False, elem_id="edit_trigger_btn")
     
+    # Alternative edit trigger without elem_id (for debugging)
+    edit_alt_id = gr.Textbox(visible=False)
+    edit_alt_btn = gr.Button("Alt Edit", visible=False)
+    
     # Hidden component to get latest blog data
     get_blogs_trigger = gr.Button("Get Blogs", visible=False, elem_id="get_blogs_trigger")
     blogs_data_output = gr.JSON(visible=False, elem_id="blogs_data_output")
@@ -1135,6 +1192,13 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     edit_trigger_btn.click(
         fn=populate_edit_form,
         inputs=[edit_trigger_id, blogs_storage_state],
+        outputs=[edit_section, edit_blog_id, edit_title, edit_content, edit_category]
+    )
+    
+    # Alternative edit trigger event handler
+    edit_alt_btn.click(
+        fn=populate_edit_form,
+        inputs=[edit_alt_id, blogs_storage_state],
         outputs=[edit_section, edit_blog_id, edit_title, edit_content, edit_category]
     )
     
@@ -1414,33 +1478,111 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         // Close any open modal first
         closeModal('viewModal');
         
-        // Trigger the Gradio edit form population
-        try {{
-            // Find the hidden trigger components
-            const editTriggerIdInput = document.querySelector('#edit_trigger_id input');
-            const editTriggerBtn = document.querySelector('#edit_trigger_btn');
-            
-            if (editTriggerIdInput && editTriggerBtn) {{
-                // Set the blog ID and trigger the edit form population
-                editTriggerIdInput.value = blogId;
-                editTriggerIdInput.dispatchEvent(new Event('change', {{ bubbles: true }}));
+        // Trigger the Gradio edit form population with retry logic
+        const triggerEditForm = () => {{
+            try {{
+                // Try multiple selectors for the hidden trigger components
+                const editTriggerIdInput = document.querySelector('#edit_trigger_id input') || 
+                                         document.querySelector('input[data-testid="edit_trigger_id"]') ||
+                                         document.querySelector('[id*="edit_trigger_id"] input');
+                                         
+                const editTriggerBtn = document.querySelector('#edit_trigger_btn') || 
+                                     document.querySelector('button[data-testid="edit_trigger_btn"]') ||
+                                     document.querySelector('[id*="edit_trigger_btn"]');
                 
-                // Trigger the edit form population
-                editTriggerBtn.click();
+                console.log('🔍 Looking for edit trigger components...');
+                console.log('Available elements with edit_trigger:', document.querySelectorAll('[id*="edit_trigger"]'));
                 
-                console.log('✅ Edit form trigger activated');
-                alert('Edit form is opening! Please scroll down to see the editing interface.');
-            }} else {{
-                console.error('❌ Edit trigger components not found');
-                console.log('Trigger elements found:', {{
-                    triggerId: !!editTriggerIdInput,
-                    triggerBtn: !!editTriggerBtn
-                }});
-                alert('Edit functionality not ready. Please try again in a moment.');
+                if (editTriggerIdInput && editTriggerBtn) {{
+                    console.log('✅ Found edit trigger components');
+                    
+                    // Set the blog ID and trigger the edit form population
+                    editTriggerIdInput.value = blogId;
+                    editTriggerIdInput.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    editTriggerIdInput.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    
+                    // Small delay to ensure the input is processed
+                    setTimeout(() => {{
+                        editTriggerBtn.click();
+                        console.log('✅ Edit form trigger activated');
+                        
+                        // Scroll to edit section after a moment
+                        setTimeout(() => {{
+                            const editSection = document.querySelector('#edit_section') || 
+                                               document.querySelector('[data-testid="edit_section"]') ||
+                                               document.querySelector('[id*="edit_section"]');
+                            if (editSection) {{
+                                editSection.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
+                            }}
+                        }}, 500);
+                    }}, 100);
+                    
+                    return true;
+                }} else {{
+                    console.error('❌ Edit trigger components not found');
+                    console.log('Trigger elements found:', {{
+                        triggerId: !!editTriggerIdInput,
+                        triggerBtn: !!editTriggerBtn
+                    }});
+                    console.log('All input elements:', document.querySelectorAll('input'));
+                    console.log('All button elements:', document.querySelectorAll('button'));
+                    return false;
+                }}
+            }} catch (error) {{
+                console.error('❌ Error triggering edit form:', error);
+                return false;
             }}
-        }} catch (error) {{
-            console.error('❌ Error triggering edit form:', error);
-            alert('Error opening edit form. Please try again.');
+        }};
+        
+        // Try immediately, then retry with delays if needed
+        let success = triggerEditForm();
+        if (!success) {{
+            console.log('🔄 Retrying edit trigger in 1 second...');
+            setTimeout(() => {{
+                success = triggerEditForm();
+                if (!success) {{
+                    console.log('🔄 Final retry in 2 seconds...');
+                    setTimeout(() => {{
+                        success = triggerEditForm();
+                        if (!success) {{
+                            // Final fallback: try to find any available edit triggers
+                            console.log('🔍 Trying fallback approach...');
+                            const allHiddenInputs = document.querySelectorAll('input[style*="display: none"], input[style*="display:none"]');
+                            const allHiddenButtons = document.querySelectorAll('button[style*="display: none"], button[style*="display:none"]');
+                            
+                            console.log('All hidden inputs:', allHiddenInputs);
+                            console.log('All hidden buttons:', allHiddenButtons);
+                            
+                            // Try to find any input/button pair that might be our edit triggers
+                            let foundTrigger = false;
+                            for (let i = 0; i < allHiddenInputs.length; i++) {{
+                                const input = allHiddenInputs[i];
+                                if (i < allHiddenButtons.length) {{
+                                    const button = allHiddenButtons[i];
+                                    console.log(`🔄 Trying trigger pair ${{i}}: input=${{input.id}}, button=${{button.textContent}}`);
+                                    
+                                    // Try this pair
+                                    input.value = blogId;
+                                    input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                    input.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                    
+                                    setTimeout(() => {{
+                                        button.click();
+                                        console.log(`✅ Tried trigger pair ${{i}}`);
+                                    }}, 100);
+                                    
+                                    foundTrigger = true;
+                                    break;
+                                }}
+                            }}
+                            
+                            if (!foundTrigger) {{
+                                alert('Edit functionality not ready yet. The interface is still loading. Please wait a moment and try again.');
+                            }}
+                        }}
+                    }}, 2000);
+                }}
+            }}, 1000);
         }}
     }}
     
