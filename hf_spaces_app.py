@@ -1535,15 +1535,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                  blogsData[blogIndex].category = category;
              }}
              
-             // Trigger Gradio category filter refresh to update the view properly
-             const currentCategoryDropdown = document.querySelector('#category_dropdown select');
-             if (currentCategoryDropdown) {{
-                 // Trigger change event to refresh the category filter
-                 currentCategoryDropdown.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                 console.log('✅ Category filter refreshed after blog update');
-             }}
-             
-             console.log('✅ Blog card updated in DOM and category filtering applied');
+             console.log('✅ Blog card updated in DOM');
          }}
          
          // Trigger Gradio update function to update backend state
@@ -1570,6 +1562,15 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
              updateBtn.click();
              
              console.log('✅ Gradio update triggered');
+             
+             // After a short delay, refresh the category filter to show updated categorization
+             setTimeout(() => {{
+                 const currentCategoryDropdown = document.querySelector('#category_dropdown select');
+                 if (currentCategoryDropdown) {{
+                     currentCategoryDropdown.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                     console.log('✅ Category filter refreshed after backend update');
+                 }}
+             }}, 500);
              
              // Show success message
              alert('Blog updated successfully!');
