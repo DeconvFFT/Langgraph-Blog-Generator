@@ -629,33 +629,43 @@ def get_blog_by_id(blog_id: str, blogs_storage: List[Dict]) -> Optional[Dict]:
 
 def update_blog(blog_id: str, title: str, content: str, category: str, blogs_storage: List[Dict], current_filter: str) -> tuple:
     """Update a blog using Gradio State"""
-    # Update blog
-    updated_blogs = []
-    success = False
-    
-    for blog in blogs_storage:
-        if blog.get('id') == blog_id:
-            updated_blog = blog.copy()
-            updated_blog.update({
-                'title': clean_title(title), 
-                'content': clean_content(content), 
-                'category': category,
-                'updated_at': datetime.now().strftime("%B %d, %Y")
-            })
-            updated_blogs.append(updated_blog)
-            success = True
-            print(f"✏️ Blog updated successfully: {updated_blog.get('title', 'Untitled')}")
+    try:
+        # Update blog
+        updated_blogs = []
+        success = False
+        
+        for blog in blogs_storage:
+            if blog.get('id') == blog_id:
+                updated_blog = blog.copy()
+                updated_blog.update({
+                    'title': clean_title(title), 
+                    'content': clean_content(content), 
+                    'category': category,
+                    'updated_at': datetime.now().strftime("%B %d, %Y")
+                })
+                updated_blogs.append(updated_blog)
+                success = True
+                print(f"✏️ Blog updated successfully: {updated_blog.get('title', 'Untitled')}")
+            else:
+                updated_blogs.append(blog)
+        
+        if success:
+            print(f"✏️ Blog updated successfully. Total blogs: {len(updated_blogs)}")
         else:
-            updated_blogs.append(blog)
-    
-    if success:
-        print(f"✏️ Blog updated successfully. Total blogs: {len(updated_blogs)}")
-    else:
-        print(f"⚠️ Blog update failed for ID: {blog_id}")
-    
-    # Generate updated cards
-    cards_html = generate_blog_cards(updated_blogs, current_filter)
-    return cards_html, updated_blogs, current_filter
+            print(f"⚠️ Blog update failed for ID: {blog_id}")
+            # Return original data if update failed
+            cards_html = generate_blog_cards(blogs_storage, current_filter)
+            return cards_html, blogs_storage, current_filter
+        
+        # Generate updated cards
+        cards_html = generate_blog_cards(updated_blogs, current_filter)
+        return cards_html, updated_blogs, current_filter
+        
+    except Exception as e:
+        print(f"❌ Error in update_blog: {str(e)}")
+        # Return original data on error
+        cards_html = generate_blog_cards(blogs_storage, current_filter)
+        return cards_html, blogs_storage, current_filter
 
 def check_api_status() -> str:
     """Check if the API is available"""
@@ -1482,6 +1492,14 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         const content = document.getElementById('editContent').value;
         const category = document.getElementById('editCategory').value;
         
+        // Validate inputs
+        if (!title.trim() || !content.trim() || !category || !blogId) {{
+            alert('Please fill in all fields and ensure blog ID is valid.');
+            return;
+        }}
+        
+        console.log('Saving blog edit:', {{ blogId, title: title.substring(0, 50) + '...', category }});
+        
         // Close modal first
         closeModal('editModal');
         
@@ -1546,26 +1564,50 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
          const updateCategoryInput = document.querySelector('#update_category_input input');
          const updateBtn = document.querySelector('#update_btn');
          
+         console.log('Update components found:', {{
+             updateBlogIdInput: !!updateBlogIdInput,
+             updateTitleInput: !!updateTitleInput,
+             updateContentInput: !!updateContentInput,
+             updateCategoryInput: !!updateCategoryInput,
+             updateBtn: !!updateBtn
+         }});
+         
          if (updateBlogIdInput && updateTitleInput && updateContentInput && updateCategoryInput && updateBtn) {{
-             // Set the values
-             updateBlogIdInput.value = blogId;
-             updateTitleInput.value = title;
-             updateContentInput.value = content;
-             updateCategoryInput.value = category;
+             try {{
+                 // Set the values
+                 updateBlogIdInput.value = blogId;
+                 updateTitleInput.value = title;
+                 updateContentInput.value = content;
+                 updateCategoryInput.value = category;
+                 
+                 console.log('Values set in hidden inputs:', {{
+                     id: updateBlogIdInput.value,
+                     title: updateTitleInput.value.substring(0, 50) + '...',
+                     category: updateCategoryInput.value
+                 }});
+                 
+                 // Trigger change events
+                 [updateBlogIdInput, updateTitleInput, updateContentInput, updateCategoryInput].forEach(input => {{
+                     input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                     input.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                 }});
+                 
+                 // Add a small delay before clicking the button
+                 setTimeout(() => {{
+                     updateBtn.click();
+                     console.log('✅ Gradio update triggered');
+                 }}, 100);
+             }} catch (error) {{
+                 console.error('❌ Error during Gradio update:', error);
+                 alert('Update failed. Please try again.');
+             }}
+         }} else {{
+             console.error('❌ Missing update components. Update skipped.');
+             alert('Update system not ready. Please refresh the page and try again.');
+         }}
              
-             // Trigger change events
-             [updateBlogIdInput, updateTitleInput, updateContentInput, updateCategoryInput].forEach(input => {{
-                 input.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                 input.dispatchEvent(new Event('change', {{ bubbles: true }}));
-             }});
-             
-             // Trigger the update
-             updateBtn.click();
-             
-             console.log('✅ Gradio update triggered');
-             
-             // After a short delay, refresh the category filter to show updated categorization
-             setTimeout(() => {{
+         // After a short delay, refresh the category filter to show updated categorization
+         setTimeout(() => {{
                  const currentCategoryDropdown = document.querySelector('#category_dropdown select') || 
                                                 document.querySelector('select[data-testid="category_dropdown"]') ||
                                                 document.querySelector('[id*="category_dropdown"] select');
