@@ -1006,8 +1006,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
             choices=BLOG_CATEGORIES,
             value="All",
             label="🏷️ Filter by Category",
-            info="Select a category to filter blogs",
-            elem_id="category_dropdown"
+            info="Select a category to filter blogs"
         )
     
     # Blog Cards Display Section
@@ -1536,13 +1535,18 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                  blogsData[blogIndex].category = category;
              }}
              
-             // Trigger Gradio category filter refresh to update the view properly
-             const currentCategoryDropdown = document.querySelector('#category_dropdown select');
-             if (currentCategoryDropdown) {{
-                 // Trigger change event to refresh the category filter
-                 currentCategoryDropdown.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                 console.log('✅ Category filter refreshed after blog update');
-             }}
+                           // Trigger Gradio category filter refresh to update the view properly
+              setTimeout(() => {{
+                  const currentCategoryDropdown = document.querySelector('select') || 
+                                                 document.querySelector('[role="listbox"]') ||
+                                                 document.querySelector('.gradio-dropdown select');
+                  if (currentCategoryDropdown) {{
+                      // Trigger change event to refresh the category filter
+                      currentCategoryDropdown.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                      currentCategoryDropdown.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                      console.log('✅ Category filter refreshed after blog update');
+                  }}
+              }}, 1000);
              
              console.log('✅ Blog card updated in DOM and category filtering applied');
          }}
