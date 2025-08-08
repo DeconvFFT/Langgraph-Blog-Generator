@@ -18,7 +18,7 @@ SUPPORTED_LANGUAGES = [
     "Hindi"
 ]
 
-# Blog categories
+# Blog categories - Only tech and wellness
 BLOG_CATEGORIES = [
     "All",
     "Technology",
@@ -26,20 +26,62 @@ BLOG_CATEGORIES = [
     "Machine Learning",
     "Data Science",
     "Software Development",
-    "Business",
     "Health & Wellness",
-    "Education",
-    "Travel",
-    "Food & Cooking",
-    "Personal Development",
-    "Science",
-    "Environment",
-    "Entertainment"
+    "Fitness",
+    "Nutrition",
+    "Mental Health"
 ]
 
 # In-memory storage for blogs (in production, use a database)
 blogs_storage = []
 current_filter = "All"
+
+def validate_topic(topic: str) -> tuple[bool, str]:
+    """Validate if topic is tech or wellness related"""
+    topic_lower = topic.lower()
+    
+    # Tech keywords
+    tech_keywords = [
+        "technology", "tech", "software", "hardware", "digital", "computer", "ai", "artificial intelligence",
+        "machine learning", "ml", "data science", "programming", "coding", "developer", "code", "app",
+        "algorithm", "neural", "deep learning", "chatgpt", "gpt", "automation", "robotics", "cybersecurity",
+        "cloud", "blockchain", "iot", "virtual reality", "vr", "augmented reality", "ar", "mobile",
+        "web", "database", "api", "framework", "startup", "innovation", "digital transformation"
+    ]
+    
+    # Wellness keywords
+    wellness_keywords = [
+        "health", "wellness", "fitness", "exercise", "workout", "nutrition", "diet", "mental health",
+        "meditation", "yoga", "mindfulness", "stress", "anxiety", "depression", "therapy", "counseling",
+        "self-care", "lifestyle", "wellbeing", "physical health", "mental wellbeing", "emotional health",
+        "sleep", "recovery", "strength training", "cardio", "flexibility", "balance", "energy", "vitality",
+        "holistic", "natural", "organic", "supplements", "vitamins", "minerals", "protein", "workout routine"
+    ]
+    
+    # Check if topic contains tech or wellness keywords
+    for keyword in tech_keywords:
+        if keyword in topic_lower:
+            return True, "tech"
+    
+    for keyword in wellness_keywords:
+        if keyword in topic_lower:
+            return True, "wellness"
+    
+    return False, "invalid"
+
+def clean_title(title: str) -> str:
+    """Clean up title formatting - remove markdown and quotes"""
+    # Remove markdown formatting
+    cleaned = title.replace('**', '').replace('*', '').replace('__', '').replace('_', '')
+    
+    # Remove quotes
+    cleaned = cleaned.replace('"', '').replace('"', '').replace('"', '').replace('"', '')
+    cleaned = cleaned.replace("'", '').replace("'", '').replace("'", '').replace("'", '')
+    
+    # Remove extra whitespace
+    cleaned = ' '.join(cleaned.split())
+    
+    return cleaned
 
 def generate_blog(topic: str, language: str) -> Dict[str, Any]:
     """Generate a blog using the API with enhanced prompts for emojis and better formatting"""
@@ -48,6 +90,15 @@ def generate_blog(topic: str, language: str) -> Dict[str, Any]:
             "success": False,
             "error": "Topic cannot be empty",
             "message": "Please provide a topic for the blog"
+        }
+    
+    # Validate topic
+    is_valid, category_type = validate_topic(topic.strip())
+    if not is_valid:
+        return {
+            "success": False,
+            "error": "Invalid topic",
+            "message": "Please provide a topic related to technology or health & wellness only."
         }
     
     try:
@@ -66,6 +117,8 @@ def generate_blog(topic: str, language: str) -> Dict[str, Any]:
         - Include practical examples or tips where relevant
         - End with a thought-provoking conclusion
         - Use emojis strategically to enhance readability and engagement
+        - Minimum 1200 words
+        - Do NOT include the title - only the content
         
         Make sure the content flows naturally and feels like a high-quality Medium or Substack article!
         """
@@ -95,9 +148,9 @@ def generate_blog(topic: str, language: str) -> Dict[str, Any]:
 def check_duplicate_blog(title: str) -> bool:
     """Check if a blog with the same title already exists"""
     global blogs_storage
-    title_lower = title.lower().strip()
+    title_lower = clean_title(title).lower().strip()
     for blog in blogs_storage:
-        if blog.get('title', '').lower().strip() == title_lower:
+        if clean_title(blog.get('title', '')).lower().strip() == title_lower:
             return True
     return False
 
@@ -106,22 +159,17 @@ def categorize_blog(topic: str, content: str) -> str:
     topic_lower = topic.lower()
     content_lower = content.lower()
     
-    # Define category keywords
+    # Define category keywords - only tech and wellness
     category_keywords = {
-        "Technology": ["technology", "tech", "software", "hardware", "digital", "computer"],
-        "Artificial Intelligence": ["ai", "artificial intelligence", "neural", "deep learning", "chatgpt", "gpt"],
-        "Machine Learning": ["machine learning", "ml", "algorithm", "model", "training", "prediction"],
-        "Data Science": ["data", "analytics", "statistics", "visualization", "big data"],
-        "Software Development": ["programming", "coding", "developer", "code", "software", "app"],
-        "Business": ["business", "startup", "entrepreneur", "marketing", "strategy", "company"],
-        "Health & Wellness": ["health", "wellness", "fitness", "medical", "nutrition", "exercise"],
-        "Education": ["education", "learning", "teaching", "student", "course", "academic"],
-        "Travel": ["travel", "tourism", "vacation", "destination", "trip", "journey"],
-        "Food & Cooking": ["food", "cooking", "recipe", "cuisine", "kitchen", "chef"],
-        "Personal Development": ["personal", "development", "growth", "motivation", "self-help"],
-        "Science": ["science", "research", "experiment", "discovery", "scientific"],
-        "Environment": ["environment", "climate", "sustainability", "green", "eco-friendly"],
-        "Entertainment": ["entertainment", "movie", "music", "game", "fun", "leisure"]
+        "Technology": ["technology", "tech", "software", "hardware", "digital", "computer", "ai", "artificial intelligence", "automation"],
+        "Artificial Intelligence": ["ai", "artificial intelligence", "neural", "deep learning", "chatgpt", "gpt", "machine learning"],
+        "Machine Learning": ["machine learning", "ml", "algorithm", "model", "training", "prediction", "neural network"],
+        "Data Science": ["data", "analytics", "statistics", "visualization", "big data", "data science"],
+        "Software Development": ["programming", "coding", "developer", "code", "software", "app", "framework"],
+        "Health & Wellness": ["health", "wellness", "fitness", "medical", "nutrition", "exercise", "lifestyle"],
+        "Fitness": ["fitness", "exercise", "workout", "training", "strength", "cardio", "gym"],
+        "Nutrition": ["nutrition", "diet", "food", "eating", "supplements", "vitamins", "protein"],
+        "Mental Health": ["mental health", "therapy", "counseling", "anxiety", "depression", "stress", "mindfulness"]
     }
     
     # Check topic and content for category matches
@@ -130,7 +178,14 @@ def categorize_blog(topic: str, content: str) -> str:
             if keyword in topic_lower or keyword in content_lower:
                 return category
     
-    return "Technology"  # Default category
+    # Default based on validation
+    is_valid, category_type = validate_topic(topic)
+    if category_type == "tech":
+        return "Technology"
+    elif category_type == "wellness":
+        return "Health & Wellness"
+    
+    return "Technology"  # Fallback
 
 def create_blog_card(blog: Dict[str, Any]) -> str:
     """Create HTML card for a blog with 4-column grid layout"""
@@ -152,15 +207,10 @@ def create_blog_card(blog: Dict[str, Any]) -> str:
         "Machine Learning": "#06B6D4",
         "Data Science": "#10B981",
         "Software Development": "#F59E0B",
-        "Business": "#EF4444",
         "Health & Wellness": "#EC4899",
-        "Education": "#6366F1",
-        "Travel": "#14B8A6",
-        "Food & Cooking": "#F97316",
-        "Personal Development": "#84CC16",
-        "Science": "#6B7280",
-        "Environment": "#059669",
-        "Entertainment": "#DC2626"
+        "Fitness": "#14B8A6",
+        "Nutrition": "#F97316",
+        "Mental Health": "#6366F1"
     }
     
     category_color = category_colors.get(category, "#3B82F6")
@@ -352,17 +402,18 @@ def generate_and_save_blog(topic: str, language: str) -> tuple:
     if not blog_content:
         return "", "❌ No blog content was generated."
     
-    # Get the generated title
+    # Get the generated title and clean it
     generated_title = blog_content.get('title', f'Blog about {topic}')
+    cleaned_title = clean_title(generated_title)
     
     # Check for duplicate blog
-    if check_duplicate_blog(generated_title):
+    if check_duplicate_blog(cleaned_title):
         return "", "❌ Blog already exists with this title."
     
     # Create blog object
     blog = {
         'id': str(uuid.uuid4()),
-        'title': generated_title,
+        'title': cleaned_title,
         'content': blog_content.get('content', ''),
         'topic': topic,
         'language': language,
@@ -448,7 +499,7 @@ def update_blog(blog_id: str, title: str, content: str, category: str) -> str:
     global blogs_storage
     for blog in blogs_storage:
         if blog.get('id') == blog_id:
-            blog['title'] = title
+            blog['title'] = clean_title(title)
             blog['content'] = content
             blog['category'] = category
             blog['updated_at'] = datetime.now().strftime("%B %d, %Y")
@@ -684,6 +735,13 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         ">
             Generate, organize, and manage your AI-powered blog collection
         </p>
+        <p style="
+            color: #9ca3af;
+            font-size: 1rem;
+            margin-top: 8px;
+        ">
+            💡 Only technology and health & wellness topics are supported
+        </p>
     </div>
     """)
     
@@ -692,7 +750,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         with gr.Column(scale=3):
             topic_input = gr.Textbox(
                 label="📝 Blog Topic",
-                placeholder="Enter your blog topic here... (e.g., 'The Future of Artificial Intelligence')",
+                placeholder="Enter your blog topic here... (e.g., 'The Future of Artificial Intelligence' or 'Benefits of Morning Exercise')",
                 lines=2,
                 max_lines=3
             )
@@ -735,8 +793,8 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         )
     
     # Hidden components for CRUD operations
-    blog_id_input = gr.Textbox(visible=False)
-    delete_btn = gr.Button("Delete", visible=False)
+    blog_id_input = gr.Textbox(visible=False, elem_id="blog_id_input")
+    delete_btn = gr.Button("Delete", visible=False, elem_id="delete_btn")
     
     # Event handlers
     generate_btn.click(
@@ -794,10 +852,14 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
             // Get content from the preview (this is a limitation, but better than nothing)
             const preview = card.querySelector('p').textContent;
             
+            // Try to find the original blog data to get full content
+            const originalBlog = blogsData.find(b => b.id === blogId);
+            const fullContent = originalBlog ? originalBlog.content : (preview + '...');
+            
             newBlogsData.push({{
                 id: blogId,
                 title: title,
-                content: preview + '...', // This is a fallback since we can't get full content
+                content: fullContent,
                 topic: topic,
                 language: language,
                 category: category,
@@ -824,8 +886,11 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         
         const targetBlog = blog || findBlogById(blogId);
         
+        // Get the full content from the Python backend
+        const fullContent = getFullBlogContent(blogId);
+        
         // Format content for Medium/Substack style
-        const formattedContent = formatContentForArticle(targetBlog.content);
+        const formattedContent = formatContentForArticle(fullContent || targetBlog.content);
         
         // Create modal content
         const modalContent = `
@@ -903,6 +968,9 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         
         const targetBlog = blog || findBlogById(blogId);
         
+        // Get the full content from the Python backend
+        const fullContent = getFullBlogContent(blogId);
+        
         const modalContent = `
             <div id="editModal" class="modal" style="display: block;">
                 <div class="modal-content">
@@ -930,7 +998,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                                     font-size: 1rem;
                                     resize: vertical;
                                     font-family: 'Georgia', serif;
-                                ">${{targetBlog.content}}</textarea>
+                                ">${{fullContent || targetBlog.content}}</textarea>
                             </div>
                             <div style="margin-bottom: 20px;">
                                 <label style="display: block; margin-bottom: 8px; font-weight: 600;">Category:</label>
@@ -946,15 +1014,10 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                                     <option value="Machine Learning" ${{targetBlog.category === 'Machine Learning' ? 'selected' : ''}}>Machine Learning</option>
                                     <option value="Data Science" ${{targetBlog.category === 'Data Science' ? 'selected' : ''}}>Data Science</option>
                                     <option value="Software Development" ${{targetBlog.category === 'Software Development' ? 'selected' : ''}}>Software Development</option>
-                                    <option value="Business" ${{targetBlog.category === 'Business' ? 'selected' : ''}}>Business</option>
                                     <option value="Health & Wellness" ${{targetBlog.category === 'Health & Wellness' ? 'selected' : ''}}>Health & Wellness</option>
-                                    <option value="Education" ${{targetBlog.category === 'Education' ? 'selected' : ''}}>Education</option>
-                                    <option value="Travel" ${{targetBlog.category === 'Travel' ? 'selected' : ''}}>Travel</option>
-                                    <option value="Food & Cooking" ${{targetBlog.category === 'Food & Cooking' ? 'selected' : ''}}>Food & Cooking</option>
-                                    <option value="Personal Development" ${{targetBlog.category === 'Personal Development' ? 'selected' : ''}}>Personal Development</option>
-                                    <option value="Science" ${{targetBlog.category === 'Science' ? 'selected' : ''}}>Science</option>
-                                    <option value="Environment" ${{targetBlog.category === 'Environment' ? 'selected' : ''}}>Environment</option>
-                                    <option value="Entertainment" ${{targetBlog.category === 'Entertainment' ? 'selected' : ''}}>Entertainment</option>
+                                    <option value="Fitness" ${{targetBlog.category === 'Fitness' ? 'selected' : ''}}>Fitness</option>
+                                    <option value="Nutrition" ${{targetBlog.category === 'Nutrition' ? 'selected' : ''}}>Nutrition</option>
+                                    <option value="Mental Health" ${{targetBlog.category === 'Mental Health' ? 'selected' : ''}}>Mental Health</option>
                                 </select>
                             </div>
                             <div style="text-align: center;">
@@ -995,11 +1058,28 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     
     function deleteBlogConfirm(blogId) {{
         if (confirm('Are you sure you want to delete this blog? This action cannot be undone.')) {{
-            // Trigger Gradio delete function
-            const deleteBtn = document.querySelector('[data-testid="delete_btn"]');
+            // Remove from JavaScript data
+            blogsData = blogsData.filter(blog => blog.id !== blogId);
+            
+            // Remove the card from the DOM
+            const card = document.querySelector(`[data-blog-id="${{blogId}}"]`);
+            if (card) {{
+                card.remove();
+            }}
+            
+            // Trigger Gradio delete function to update backend
+            const deleteBtn = document.querySelector('#delete_btn');
             if (deleteBtn) {{
+                // Set the blog ID and trigger delete
+                const blogIdInput = document.querySelector('#blog_id_input');
+                if (blogIdInput) {{
+                    blogIdInput.value = blogId;
+                }}
                 deleteBtn.click();
             }}
+            
+            // Show success message
+            alert('Blog deleted successfully!');
         }}
     }}
     
@@ -1030,8 +1110,26 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         alert('Blog updated successfully! Please refresh the page to see changes.');
     }}
     
+    // Function to get full blog content from Python backend
+    function getFullBlogContent(blogId) {{
+        // Get the full content from the JavaScript data
+        const blog = findBlogById(blogId);
+        if (blog && blog.content) {{
+            // If content is just a preview, try to get the original content
+            if (blog.content.endsWith('...') && blog.content.length < 200) {{
+                // This is likely just a preview, try to find the original
+                const originalBlog = blogsData.find(b => b.id === blogId && b.content.length > 200);
+                return originalBlog ? originalBlog.content : blog.content;
+            }}
+            return blog.content;
+        }}
+        return null;
+    }}
+    
     // Function to format content for Medium/Substack style
     function formatContentForArticle(content) {{
+        if (!content) return '<p>No content available.</p>';
+        
         // Convert markdown-like formatting to HTML
         let formatted = content
             // Headers
