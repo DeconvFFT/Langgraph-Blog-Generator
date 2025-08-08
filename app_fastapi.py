@@ -1,6 +1,7 @@
 import uvicorn
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from src.graphs.graph_builder import GraphBuilder
 from src.llms.groqllm import GroqLLM
 from src.states.blogstate import BlogState
@@ -21,6 +22,15 @@ app = FastAPI(
     title="Blog Generator API",
     description="AI-powered blog generation service",
     version="1.0.0"
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
 )
 
 # Setup LangSmith if needed (optional)
