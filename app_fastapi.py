@@ -10,6 +10,7 @@ from typing import Optional
 import os
 from dotenv import load_dotenv
 import logging
+import sys
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -206,14 +207,35 @@ async def root():
 
 
 if __name__ == '__main__':
-    # Get port from environment or default to 8000
-    port = int(os.getenv('PORT', 8000))
-    host = os.getenv('HOST', '0.0.0.0')
-    
-    uvicorn.run(
-        "app_fastapi:app", 
-        host=host,
-        port=port,
-        reload=False,  # Disable reload in production
-        log_level="info"
-    )
+    try:
+        # Get port from environment or default to 8000
+        port = int(os.getenv('PORT', 8000))
+        host = os.getenv('HOST', '0.0.0.0')
+        
+        print(f"🚀 Starting FastAPI server on {host}:{port}")
+        print(f"🔧 Environment: PORT={os.getenv('PORT', '8000')}, HOST={os.getenv('HOST', '0.0.0.0')}")
+        print(f"🔑 GROQ_API_KEY: {'Set' if os.getenv('GROQ_API_KEY') else 'Not set'}")
+        print(f"🌍 Railway Environment: {os.getenv('RAILWAY_ENVIRONMENT', 'unknown')}")
+        
+        # Test if we can import required modules
+        try:
+            from src.graphs.graph_builder import GraphBuilder
+            from src.llms.groqllm import GroqLLM
+            from src.states.blogstate import BlogState
+            print("✅ All required modules imported successfully")
+        except ImportError as e:
+            print(f"❌ Import error: {e}")
+            print("This might be a dependency issue in Railway")
+        
+        uvicorn.run(
+            "app_fastapi:app", 
+            host=host,
+            port=port,
+            reload=False,  # Disable reload in production
+            log_level="info"
+        )
+    except Exception as e:
+        print(f"❌ Failed to start server: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
