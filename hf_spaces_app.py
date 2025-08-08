@@ -8,7 +8,7 @@ from datetime import datetime
 import uuid
 
 # Configuration
-API_BASE_URL = os.getenv('API_BASE_URL', 'https://your-api-endpoint.com')
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')  # Default to localhost for development
 API_ENDPOINT = f"{API_BASE_URL}/blogs"
 
 # Supported languages
@@ -165,9 +165,26 @@ def generate_blog(topic: str, language: str) -> Dict[str, Any]:
         )
         
         response.raise_for_status()
-        console.log('response from API: ', response)
         return response.json()
         
+    except requests.exceptions.ConnectionError:
+        return {
+            "success": False,
+            "error": "Connection failed",
+            "message": f"Cannot connect to API at {API_ENDPOINT}. Please check if the API server is running."
+        }
+    except requests.exceptions.Timeout:
+        return {
+            "success": False,
+            "error": "Request timeout",
+            "message": "The API request timed out. Please try again."
+        }
+    except requests.exceptions.HTTPError as e:
+        return {
+            "success": False,
+            "error": "HTTP error",
+            "message": f"API returned error {e.response.status_code}: {e.response.text}"
+        }
     except Exception as e:
         return {
             "success": False,
@@ -442,6 +459,9 @@ def generate_and_save_blog(topic: str, language: str) -> tuple:
     
     # Clean the content
     raw_content = blog_content.get('content', '')
+    if not raw_content:
+        return "", "❌ No content was generated in the API response."
+    
     cleaned_content = clean_content(raw_content)
     
     # Create blog object
@@ -540,6 +560,35 @@ def update_blog(blog_id: str, title: str, content: str, category: str) -> str:
             break
     
     return generate_blog_cards(blogs_storage, current_filter)
+
+def check_api_status() -> str:
+    """Check if the API is available"""
+    try:
+        response = requests.get(f"{API_BASE_URL}/health", timeout=5)
+        if response.status_code == 200:
+            return "✅ API is available"
+        else:
+            return "⚠️ API is responding but may have issues"
+    except requests.exceptions.ConnectionError:
+        return "❌ Cannot connect to API. Please check if the server is running."
+    except requests.exceptions.Timeout:
+        return "⚠️ API connection timeout"
+    except Exception as e:
+        return f"❌ API check failed: {str(e)}"
+
+def get_api_status_message() -> str:
+    """Get a user-friendly API status message"""
+    status = check_api_status()
+    if "✅" in status:
+        return "Ready to generate blogs"
+    elif "⚠️" in status:
+        return "API may have issues - try generating a blog"
+    else:
+        return "API unavailable - please check server connection"
+
+def refresh_status() -> str:
+    """Refresh the API status"""
+    return get_api_status_message()
 
 # Custom CSS for better styling
 custom_css = """
@@ -822,6 +871,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     with gr.Row():
         status_output = gr.Textbox(
             label="📊 Status",
+            value=get_api_status_message(),
             interactive=False,
             lines=1
         )
@@ -846,6 +896,14 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     blog_id_input = gr.Textbox(visible=False, elem_id="blog_id_input")
     delete_btn = gr.Button("Delete", visible=False, elem_id="delete_btn")
     
+    # Hidden component to get latest blog data
+    get_blogs_trigger = gr.Button("Get Blogs", visible=False, elem_id="get_blogs_trigger")
+    blogs_data_output = gr.JSON(visible=False, elem_id="blogs_data_output")
+    
+    def get_current_blogs_data():
+        """Get current blogs data for JavaScript"""
+        return blogs_storage
+    
     # Event handlers
     generate_btn.click(
         fn=generate_and_save_blog,
@@ -865,6 +923,12 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         outputs=[blog_cards_output]
     )
     
+    get_blogs_trigger.click(
+        fn=get_current_blogs_data,
+        inputs=[],
+        outputs=[blogs_data_output]
+    )
+    
     # Add JavaScript for advanced blog management with proper data synchronization
     gr.HTML(f"""
     <script>
@@ -876,20 +940,37 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         blogsData = newData;
     }}
     
+    // Function to get the latest Python data
+    function getLatestPythonData() {{
+        // This function will be called to get the most recent data from Python
+        // For now, we'll use the initial data, but in a real implementation,
+        // this would make an AJAX call to get the latest data
+        return {json.dumps(blogs_storage)};
+    }}
+    
+    // Function to sync JavaScript data with Python data
+    function syncJavaScriptData() {{
+        console.log('Syncing JavaScript data with Python data...');
+        const latestData = getLatestPythonData();
+        blogsData = latestData;
+        console.log('JavaScript data synced:', blogsData);
+    }}
+    
     // Function to debug available blogs
     function debugAvailableBlogs() {{
         console.log('=== DEBUG: Available Blogs ===');
         console.log('Current JavaScript data:', blogsData);
-        console.log('Original Python data:', {json.dumps(blogs_storage)});
+        
+        const latestData = getLatestPythonData();
+        console.log('Latest Python data:', latestData);
         
         console.log('Blogs in current data:');
         blogsData.forEach((blog, index) => {{
             console.log(`  ${{index}}: ID=${{blog.id}}, Title="${{blog.title}}"`);
         }});
         
-        console.log('Blogs in original data:');
-        const originalData = {json.dumps(blogs_storage)};
-        originalData.forEach((blog, index) => {{
+        console.log('Blogs in latest data:');
+        latestData.forEach((blog, index) => {{
             console.log(`  ${{index}}: ID=${{blog.id}}, Title="${{blog.title}}"`);
         }});
         console.log('=== END DEBUG ===');
@@ -898,11 +979,25 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     // Function to find blog by ID - simplified
     function findBlogById(blogId) {{
         console.log('Finding blog with ID:', blogId);
-        // Always use the Python data directly
-        const originalData = {json.dumps(blogs_storage)};
-        const blog = originalData.find(blog => blog.id === blogId);
-        console.log('Found blog:', blog);
-        return blog;
+        
+        // First try current JavaScript data
+        let blog = blogsData.find(blog => blog.id === blogId);
+        if (blog) {{
+            console.log('Found blog in current data:', blog);
+            return blog;
+        }}
+        
+        // If not found, sync data and try again
+        console.log('Blog not found in current data, syncing...');
+        syncJavaScriptData();
+        blog = blogsData.find(blog => blog.id === blogId);
+        if (blog) {{
+            console.log('Found blog after sync:', blog);
+            return blog;
+        }}
+        
+        console.log('Blog not found in any data source');
+        return null;
     }}
     
     // Function to refresh blogs data from the current page state
@@ -927,9 +1022,9 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
             
             console.log(`Card ${{index}}:`, {{ blogId, title, topic, language, category, created_at }});
             
-            // Always get the full content from the original Python data
-            const originalData = {json.dumps(blogs_storage)};
-            const originalBlog = originalData.find(b => b.id === blogId);
+            // Get the full content from the latest Python data
+            const latestData = getLatestPythonData();
+            const originalBlog = latestData.find(b => b.id === blogId);
             const fullContent = originalBlog ? originalBlog.content : '';
             
             console.log(`Card ${{index}} content length:`, fullContent ? fullContent.length : 0);
@@ -954,15 +1049,15 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     function getFullBlogContent(blogId) {{
         console.log('Getting full content for blog ID:', blogId);
         
-        // Always get the full content directly from the Python backend data
-        const originalData = {json.dumps(blogs_storage)};
-        console.log('Original Python data:', originalData);
+        // Get the full content from the latest Python data
+        const latestData = getLatestPythonData();
+        console.log('Latest Python data:', latestData);
         
-        const originalBlog = originalData.find(b => b.id === blogId);
-        console.log('Found blog in original data:', originalBlog);
+        const originalBlog = latestData.find(b => b.id === blogId);
+        console.log('Found blog in latest data:', originalBlog);
         
         if (originalBlog && originalBlog.content) {{
-            console.log('Content length from original data:', originalBlog.content.length);
+            console.log('Content length from latest data:', originalBlog.content.length);
             return originalBlog.content;
         }}
         
@@ -973,17 +1068,17 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     function viewBlogModal(blogId) {{
         console.log('Opening view modal for blog ID:', blogId);
         
-        // Get blog metadata from current data or original data
+        // Get blog metadata from current data or latest data
         let targetBlog = findBlogById(blogId);
         if (!targetBlog) {{
-            console.log('Blog not found in original data. Available blogs:', {json.dumps(blogs_storage)});
+            console.log('Blog not found in any data source. Available blogs:', getLatestPythonData());
             alert('Blog not found. This might be a temporary issue. Please try refreshing the page.');
             return;
         }}
         
         console.log('Target blog found:', targetBlog);
         
-        // Always get the full content directly from Python backend
+        // Always get the full content directly from latest Python data
         const fullContent = getFullBlogContent(blogId);
         console.log('Full content retrieved, length:', fullContent ? fullContent.length : 0);
         
@@ -1059,17 +1154,17 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     function editBlogModal(blogId) {{
         console.log('Opening edit modal for blog ID:', blogId);
         
-        // Get blog metadata from current data or original data
+        // Get blog metadata from current data or latest data
         let targetBlog = findBlogById(blogId);
         if (!targetBlog) {{
-            console.log('Blog not found in original data. Available blogs:', {json.dumps(blogs_storage)});
+            console.log('Blog not found in any data source. Available blogs:', getLatestPythonData());
             alert('Blog not found. This might be a temporary issue. Please try refreshing the page.');
             return;
         }}
         
         console.log('Target blog for edit found:', targetBlog);
         
-        // Always get the full content directly from Python backend
+        // Always get the full content directly from latest Python data
         const fullContent = getFullBlogContent(blogId);
         console.log('Full content for edit, length:', fullContent ? fullContent.length : 0);
         
@@ -1263,7 +1358,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     // Auto-refresh blogs data after page loads
     window.addEventListener('load', function() {{
         setTimeout(() => {{
-            refreshBlogsDataFromPage();
+            syncJavaScriptData();
             debugAvailableBlogs();
         }}, 1000);
     }});
@@ -1271,7 +1366,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     // Refresh blogs data when new blogs are generated
     function refreshBlogsData() {{
         setTimeout(() => {{
-            refreshBlogsDataFromPage();
+            syncJavaScriptData();
             debugAvailableBlogs();
         }}, 500);
     }}
