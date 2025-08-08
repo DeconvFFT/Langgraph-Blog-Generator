@@ -173,9 +173,6 @@ def initialize_app_state():
     
     return initial_cards
 
-# Initialize the app state
-initial_blog_cards = initialize_app_state()
-
 # Supported languages
 SUPPORTED_LANGUAGES = [
     "English",
@@ -1141,7 +1138,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     with gr.Row():
         blog_cards_output = gr.HTML(
             label="📄 Your Blog Portfolio",
-            value=initial_blog_cards
+            value=initialize_app_state() # Initialize here
         )
 
     # Hidden components for blog operations
