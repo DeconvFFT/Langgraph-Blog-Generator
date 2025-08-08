@@ -1087,6 +1087,10 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     blog_id_input = gr.Textbox(visible=False, elem_id="blog_id_input")
     delete_btn = gr.Button("Delete", visible=False, elem_id="delete_btn")
     
+    # Hidden components for edit operations
+    edit_trigger_id = gr.Textbox(visible=False, elem_id="edit_trigger_id")
+    edit_trigger_btn = gr.Button("Edit Trigger", visible=False, elem_id="edit_trigger_btn")
+    
     # Hidden component to get latest blog data
     get_blogs_trigger = gr.Button("Get Blogs", visible=False, elem_id="get_blogs_trigger")
     blogs_data_output = gr.JSON(visible=False, elem_id="blogs_data_output")
@@ -1124,6 +1128,13 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     cancel_edit_btn.click(
         fn=lambda: (gr.Row(visible=False), "", "", "", "All"),
         inputs=[],
+        outputs=[edit_section, edit_blog_id, edit_title, edit_content, edit_category]
+    )
+    
+    # Add edit trigger event handler
+    edit_trigger_btn.click(
+        fn=populate_edit_form,
+        inputs=[edit_trigger_id, blogs_storage_state],
         outputs=[edit_section, edit_blog_id, edit_title, edit_content, edit_category]
     )
     
@@ -1400,10 +1411,37 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         const fullContent = getFullBlogContent(blogId);
         console.log('Full content for edit, length:', fullContent ? fullContent.length : 0);
         
-        // For now, show a message and refresh the page
-        // In a full implementation, this would populate the Gradio edit form
-        alert('Edit functionality is being updated. Please refresh the page and try again.');
-        window.location.reload();
+        // Close any open modal first
+        closeModal('viewModal');
+        
+        // Trigger the Gradio edit form population
+        try {{
+            // Find the hidden trigger components
+            const editTriggerIdInput = document.querySelector('#edit_trigger_id input');
+            const editTriggerBtn = document.querySelector('#edit_trigger_btn');
+            
+            if (editTriggerIdInput && editTriggerBtn) {{
+                // Set the blog ID and trigger the edit form population
+                editTriggerIdInput.value = blogId;
+                editTriggerIdInput.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                
+                // Trigger the edit form population
+                editTriggerBtn.click();
+                
+                console.log('✅ Edit form trigger activated');
+                alert('Edit form is opening! Please scroll down to see the editing interface.');
+            }} else {{
+                console.error('❌ Edit trigger components not found');
+                console.log('Trigger elements found:', {{
+                    triggerId: !!editTriggerIdInput,
+                    triggerBtn: !!editTriggerBtn
+                }});
+                alert('Edit functionality not ready. Please try again in a moment.');
+            }}
+        }} catch (error) {{
+            console.error('❌ Error triggering edit form:', error);
+            alert('Error opening edit form. Please try again.');
+        }}
     }}
     
     function deleteBlogConfirm(blogId) {{
