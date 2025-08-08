@@ -1122,15 +1122,16 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
             value=generate_blog_cards([], "All")
         )
 
-    # Blog Edit Section (Hidden by default)
-    with gr.Row(visible=False) as edit_section:
+    # Blog Edit Section (Hidden by default, but with CSS to allow JS manipulation)
+    with gr.Row(visible=False, elem_id="edit_section") as edit_section:
         with gr.Column():
-            edit_blog_id = gr.Textbox(label="Blog ID", visible=False)
-            edit_title = gr.Textbox(label="Title", lines=2)
-            edit_content = gr.Textbox(label="Content", lines=15)
+            edit_blog_id = gr.Textbox(label="Blog ID", visible=False, elem_id="edit_blog_id")
+            edit_title = gr.Textbox(label="Title", lines=2, elem_id="edit_title")
+            edit_content = gr.Textbox(label="Content", lines=15, elem_id="edit_content")
             edit_category = gr.Dropdown(
                 choices=BLOG_CATEGORIES[1:],  # Exclude "All"
-                label="Category"
+                label="Category",
+                elem_id="edit_category"
             )
             with gr.Row():
                 save_edit_btn = gr.Button("💾 Save Changes", variant="primary")
@@ -1478,111 +1479,106 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         // Close any open modal first
         closeModal('viewModal');
         
-        // Trigger the Gradio edit form population with retry logic
-        const triggerEditForm = () => {{
+        // Direct approach: Find and populate the edit form elements directly
+        const populateEditFormDirectly = () => {{
             try {{
-                // Try multiple selectors for the hidden trigger components
-                const editTriggerIdInput = document.querySelector('#edit_trigger_id input') || 
-                                         document.querySelector('input[data-testid="edit_trigger_id"]') ||
-                                         document.querySelector('[id*="edit_trigger_id"] input');
-                                         
-                const editTriggerBtn = document.querySelector('#edit_trigger_btn') || 
-                                     document.querySelector('button[data-testid="edit_trigger_btn"]') ||
-                                     document.querySelector('[id*="edit_trigger_btn"]');
+                console.log('🔍 Looking for edit form elements directly...');
                 
-                console.log('🔍 Looking for edit trigger components...');
-                console.log('Available elements with edit_trigger:', document.querySelectorAll('[id*="edit_trigger"]'));
+                // Find edit form elements using multiple selectors
+                const editBlogIdInput = document.querySelector('#edit_blog_id input') ||
+                                       document.querySelector('input[data-testid="edit_blog_id"]') ||
+                                       document.querySelector('[id*="edit_blog_id"] input');
+                                       
+                const editTitleInput = document.querySelector('#edit_title textarea') ||
+                                     document.querySelector('#edit_title input') ||
+                                     document.querySelector('textarea[data-testid="edit_title"]') ||
+                                     document.querySelector('[id*="edit_title"] textarea');
+                                     
+                const editContentTextarea = document.querySelector('#edit_content textarea') ||
+                                           document.querySelector('textarea[data-testid="edit_content"]') ||
+                                           document.querySelector('[id*="edit_content"] textarea');
+                                           
+                const editCategorySelect = document.querySelector('#edit_category select') ||
+                                          document.querySelector('select[data-testid="edit_category"]') ||
+                                          document.querySelector('[id*="edit_category"] select');
+                                          
+                const editSection = document.querySelector('#edit_section') ||
+                                   document.querySelector('[data-testid="edit_section"]') ||
+                                   document.querySelector('[id*="edit_section"]');
                 
-                if (editTriggerIdInput && editTriggerBtn) {{
-                    console.log('✅ Found edit trigger components');
+                console.log('Edit form elements found:', {{
+                    blogId: !!editBlogIdInput,
+                    title: !!editTitleInput,
+                    content: !!editContentTextarea,
+                    category: !!editCategorySelect,
+                    section: !!editSection
+                }});
+                
+                if (editBlogIdInput && editTitleInput && editContentTextarea && editCategorySelect) {{
+                    console.log('✅ Found all edit form elements - populating directly');
                     
-                    // Set the blog ID and trigger the edit form population
-                    editTriggerIdInput.value = blogId;
-                    editTriggerIdInput.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                    editTriggerIdInput.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    // Populate the form fields
+                    editBlogIdInput.value = blogId;
+                    editTitleInput.value = targetBlog.title;
+                    editContentTextarea.value = fullContent || targetBlog.content || '';
+                    editCategorySelect.value = targetBlog.category;
                     
-                    // Small delay to ensure the input is processed
-                    setTimeout(() => {{
-                        editTriggerBtn.click();
-                        console.log('✅ Edit form trigger activated');
+                    // Trigger change events
+                    [editBlogIdInput, editTitleInput, editContentTextarea, editCategorySelect].forEach(element => {{
+                        element.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                        element.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    }});
+                    
+                    // Show the edit section
+                    if (editSection) {{
+                        editSection.style.display = 'block';
+                        editSection.style.visibility = 'visible';
                         
-                        // Scroll to edit section after a moment
-                        setTimeout(() => {{
-                            const editSection = document.querySelector('#edit_section') || 
-                                               document.querySelector('[data-testid="edit_section"]') ||
-                                               document.querySelector('[id*="edit_section"]');
-                            if (editSection) {{
-                                editSection.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
+                        // Find parent containers that might be hidden
+                        let parent = editSection.parentElement;
+                        while (parent && parent !== document.body) {{
+                            if (parent.style.display === 'none') {{
+                                parent.style.display = 'block';
                             }}
-                        }}, 500);
-                    }}, 100);
+                            parent = parent.parentElement;
+                        }}
+                        
+                        // Scroll to the edit section
+                        setTimeout(() => {{
+                            editSection.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
+                        }}, 300);
+                    }}
                     
+                    console.log('✅ Edit form populated and shown successfully');
                     return true;
                 }} else {{
-                    console.error('❌ Edit trigger components not found');
-                    console.log('Trigger elements found:', {{
-                        triggerId: !!editTriggerIdInput,
-                        triggerBtn: !!editTriggerBtn
-                    }});
-                    console.log('All input elements:', document.querySelectorAll('input'));
-                    console.log('All button elements:', document.querySelectorAll('button'));
+                    console.log('❌ Not all edit form elements found');
                     return false;
                 }}
             }} catch (error) {{
-                console.error('❌ Error triggering edit form:', error);
+                console.error('❌ Error populating edit form directly:', error);
                 return false;
             }}
         }};
         
-        // Try immediately, then retry with delays if needed
-        let success = triggerEditForm();
+        // Try direct population first
+        let success = populateEditFormDirectly();
+        
         if (!success) {{
-            console.log('🔄 Retrying edit trigger in 1 second...');
+            console.log('🔄 Direct population failed, trying to find any edit-related elements...');
+            
+            // Debug: Show all available elements
+            console.log('All textareas:', document.querySelectorAll('textarea'));
+            console.log('All selects:', document.querySelectorAll('select'));
+            console.log('All elements with "edit" in id:', document.querySelectorAll('[id*="edit"]'));
+            
+            // Try again after a delay
             setTimeout(() => {{
-                success = triggerEditForm();
+                success = populateEditFormDirectly();
                 if (!success) {{
-                    console.log('🔄 Final retry in 2 seconds...');
-                    setTimeout(() => {{
-                        success = triggerEditForm();
-                        if (!success) {{
-                            // Final fallback: try to find any available edit triggers
-                            console.log('🔍 Trying fallback approach...');
-                            const allHiddenInputs = document.querySelectorAll('input[style*="display: none"], input[style*="display:none"]');
-                            const allHiddenButtons = document.querySelectorAll('button[style*="display: none"], button[style*="display:none"]');
-                            
-                            console.log('All hidden inputs:', allHiddenInputs);
-                            console.log('All hidden buttons:', allHiddenButtons);
-                            
-                            // Try to find any input/button pair that might be our edit triggers
-                            let foundTrigger = false;
-                            for (let i = 0; i < allHiddenInputs.length; i++) {{
-                                const input = allHiddenInputs[i];
-                                if (i < allHiddenButtons.length) {{
-                                    const button = allHiddenButtons[i];
-                                    console.log(`🔄 Trying trigger pair ${{i}}: input=${{input.id}}, button=${{button.textContent}}`);
-                                    
-                                    // Try this pair
-                                    input.value = blogId;
-                                    input.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                                    input.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                                    
-                                    setTimeout(() => {{
-                                        button.click();
-                                        console.log(`✅ Tried trigger pair ${{i}}`);
-                                    }}, 100);
-                                    
-                                    foundTrigger = true;
-                                    break;
-                                }}
-                            }}
-                            
-                            if (!foundTrigger) {{
-                                alert('Edit functionality not ready yet. The interface is still loading. Please wait a moment and try again.');
-                            }}
-                        }}
-                    }}, 2000);
+                    alert('Edit form is not yet available. Please wait for the page to fully load and try again.');
                 }}
-            }}, 1000);
+            }}, 2000);
         }}
     }}
     
