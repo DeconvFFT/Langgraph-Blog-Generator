@@ -7,10 +7,139 @@ import os
 from datetime import datetime
 import uuid
 import html
+import pickle
+from pathlib import Path
 
 # Configuration
 API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')  # Default to localhost for development
 API_ENDPOINT = f"{API_BASE_URL}/blogs"
+
+# State Management
+STATE_FILE = "blog_state.pkl"
+BACKUP_STATE_FILE = "blog_state_backup.pkl"
+
+class BlogStateManager:
+    """State machine for managing blog data persistence"""
+    
+    def __init__(self):
+        self.state_file = Path(STATE_FILE)
+        self.backup_file = Path(BACKUP_STATE_FILE)
+        self.blogs_storage = []
+        self.current_filter = "All"
+        self.last_save_time = None
+        self.load_state()
+    
+    def load_state(self):
+        """Load state from file with fallback to backup"""
+        try:
+            if self.state_file.exists():
+                with open(self.state_file, 'rb') as f:
+                    state_data = pickle.load(f)
+                    self.blogs_storage = state_data.get('blogs_storage', [])
+                    self.current_filter = state_data.get('current_filter', 'All')
+                    self.last_save_time = state_data.get('last_save_time')
+                    print(f"✅ State loaded from {STATE_FILE}")
+                    print(f"📦 Loaded {len(self.blogs_storage)} blogs")
+            elif self.backup_file.exists():
+                with open(self.backup_file, 'rb') as f:
+                    state_data = pickle.load(f)
+                    self.blogs_storage = state_data.get('blogs_storage', [])
+                    self.current_filter = state_data.get('current_filter', 'All')
+                    self.last_save_time = state_data.get('last_save_time')
+                    print(f"✅ State loaded from backup {BACKUP_STATE_FILE}")
+                    print(f"📦 Loaded {len(self.blogs_storage)} blogs")
+            else:
+                print("🆕 No existing state found, starting fresh")
+        except Exception as e:
+            print(f"⚠️ Error loading state: {e}")
+            self.blogs_storage = []
+            self.current_filter = "All"
+    
+    def save_state(self):
+        """Save current state to file with backup"""
+        try:
+            state_data = {
+                'blogs_storage': self.blogs_storage,
+                'current_filter': self.current_filter,
+                'last_save_time': datetime.now().isoformat(),
+                'version': '1.0'
+            }
+            
+            # Create backup first
+            if self.state_file.exists():
+                self.state_file.rename(self.backup_file)
+            
+            # Save new state
+            with open(self.state_file, 'wb') as f:
+                pickle.dump(state_data, f)
+            
+            print(f"💾 State saved to {STATE_FILE}")
+            print(f"📦 Saved {len(self.blogs_storage)} blogs")
+            
+        except Exception as e:
+            print(f"❌ Error saving state: {e}")
+            # Try to restore backup if save failed
+            if self.backup_file.exists() and not self.state_file.exists():
+                self.backup_file.rename(self.state_file)
+                print("🔄 Restored backup after save failure")
+    
+    def add_blog(self, blog: Dict[str, Any]):
+        """Add a blog and persist state"""
+        self.blogs_storage.append(blog)
+        self.save_state()
+        print(f"➕ Blog added: {blog.get('title', 'Untitled')}")
+    
+    def update_blog(self, blog_id: str, updates: Dict[str, Any]):
+        """Update a blog and persist state"""
+        for blog in self.blogs_storage:
+            if blog.get('id') == blog_id:
+                blog.update(updates)
+                blog['updated_at'] = datetime.now().strftime("%B %d, %Y")
+                self.save_state()
+                print(f"✏️ Blog updated: {blog.get('title', 'Untitled')}")
+                return True
+        return False
+    
+    def delete_blog(self, blog_id: str):
+        """Delete a blog and persist state"""
+        initial_count = len(self.blogs_storage)
+        self.blogs_storage = [blog for blog in self.blogs_storage if blog.get('id') != blog_id]
+        if len(self.blogs_storage) < initial_count:
+            self.save_state()
+            print(f"🗑️ Blog deleted: {blog_id}")
+            return True
+        return False
+    
+    def get_blogs(self, category_filter: str = "All"):
+        """Get blogs with optional category filter"""
+        self.current_filter = category_filter
+        if category_filter == "All":
+            return self.blogs_storage
+        return [blog for blog in self.blogs_storage if blog.get('category') == category_filter]
+    
+    def get_blog_by_id(self, blog_id: str) -> Optional[Dict]:
+        """Get a specific blog by ID"""
+        for blog in self.blogs_storage:
+            if blog.get('id') == blog_id:
+                return blog
+        return None
+    
+    def get_state_summary(self) -> Dict[str, Any]:
+        """Get a summary of current state"""
+        return {
+            'total_blogs': len(self.blogs_storage),
+            'current_filter': self.current_filter,
+            'categories': list(set(blog.get('category', 'Unknown') for blog in self.blogs_storage)),
+            'last_save_time': self.last_save_time,
+            'storage_size': len(pickle.dumps(self.blogs_storage)) if self.blogs_storage else 0
+        }
+
+# Initialize state manager
+state_manager = BlogStateManager()
+
+# Global variables for compatibility with existing code
+blogs_storage = state_manager.blogs_storage
+current_filter = state_manager.current_filter
 
 # Supported languages
 SUPPORTED_LANGUAGES = [
@@ -32,10 +161,6 @@ BLOG_CATEGORIES = [
     "Nutrition",
     "Mental Health"
 ]
-
-# In-memory storage for blogs (in production, use a database)
-blogs_storage = []
-current_filter = "All"
 
 def validate_topic(topic: str) -> tuple[bool, str]:
     """Validate if topic is tech or wellness related"""
@@ -203,9 +328,8 @@ def generate_blog(topic: str, language: str) -> Dict[str, Any]:
 
 def check_duplicate_blog(title: str) -> bool:
     """Check if a blog with the same title already exists"""
-    global blogs_storage
     title_lower = clean_title(title).lower().strip()
-    for blog in blogs_storage:
+    for blog in state_manager.blogs_storage:
         if clean_title(blog.get('title', '')).lower().strip() == title_lower:
             return True
     return False
@@ -520,7 +644,7 @@ def generate_and_save_blog(topic: str, language: str) -> tuple:
     print(f"💾 Created blog object: {blog}")
     
     # Add to storage
-    blogs_storage.append(blog)
+    state_manager.add_blog(blog)
     
     print(f"📦 Added to storage. Total blogs: {len(blogs_storage)}")
     print(f"📦 Current blogs_storage: {blogs_storage}")
@@ -535,9 +659,6 @@ def generate_and_save_blog(topic: str, language: str) -> tuple:
 
 def generate_blog_cards(blogs: List[Dict], selected_category: str) -> str:
     """Generate HTML for all blog cards in 4-column grid layout"""
-    global current_filter
-    current_filter = selected_category
-    
     if not blogs:
         return """
         <div style="
@@ -570,8 +691,8 @@ def generate_blog_cards(blogs: List[Dict], selected_category: str) -> str:
         </div>
         """
     
-    # Generate cards HTML with 4-column grid
-    cards_html = '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding: 20px;">'
+    # Generate cards HTML with responsive grid
+    cards_html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; padding: 20px;">'
     for blog in filtered_blogs:
         cards_html += create_blog_card(blog)
     cards_html += '</div>'
@@ -580,32 +701,22 @@ def generate_blog_cards(blogs: List[Dict], selected_category: str) -> str:
 
 def filter_blogs_by_category(selected_category: str) -> str:
     """Filter blogs by category"""
-    return generate_blog_cards(blogs_storage, selected_category)
+    return generate_blog_cards(state_manager.get_blogs(selected_category), selected_category)
 
 def delete_blog_from_storage(blog_id: str) -> str:
     """Delete a blog from storage"""
     global blogs_storage
-    blogs_storage = [blog for blog in blogs_storage if blog.get('id') != blog_id]
+    state_manager.delete_blog(blog_id)
     return generate_blog_cards(blogs_storage, current_filter)
 
 def get_blog_by_id(blog_id: str) -> Optional[Dict]:
     """Get a blog by its ID"""
-    for blog in blogs_storage:
-        if blog.get('id') == blog_id:
-            return blog
-    return None
+    return state_manager.get_blog_by_id(blog_id)
 
 def update_blog(blog_id: str, title: str, content: str, category: str) -> str:
     """Update a blog"""
     global blogs_storage
-    for blog in blogs_storage:
-        if blog.get('id') == blog_id:
-            blog['title'] = clean_title(title)
-            blog['content'] = clean_content(content)
-            blog['category'] = category
-            blog['updated_at'] = datetime.now().strftime("%B %d, %Y")
-            break
-    
+    state_manager.update_blog(blog_id, {'title': clean_title(title), 'content': clean_content(content), 'category': category})
     return generate_blog_cards(blogs_storage, current_filter)
 
 def check_api_status() -> str:
@@ -923,6 +1034,32 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
             lines=1
         )
     
+    # State Management Status Section
+    with gr.Row():
+        state_status = gr.HTML(
+            value=f"""
+            <div style="
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 15px;
+                border-radius: 12px;
+                margin: 10px 0;
+                font-size: 0.9rem;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <strong>💾 State Management:</strong> 
+                        <span style="opacity: 0.9;">{state_manager.get_state_summary()['total_blogs']} blogs saved</span>
+                    </div>
+                    <div style="opacity: 0.8; font-size: 0.8rem;">
+                        Last saved: {state_manager.get_state_summary()['last_save_time'] or 'Never'}
+                    </div>
+                </div>
+            </div>
+            """,
+            label="💾 State Status"
+        )
+    
     # Category Filter Section
     with gr.Row():
         category_dropdown = gr.Dropdown(
@@ -936,10 +1073,10 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     with gr.Row():
         blog_cards_output = gr.HTML(
             label="📄 Your Blog Portfolio",
-            value=generate_blog_cards(blogs_storage, "All")
+            value=generate_blog_cards(state_manager.get_blogs("All"), "All")
         )
     
-    # Hidden components for CRUD operations
+    # Hidden components for blog operations
     blog_id_input = gr.Textbox(visible=False, elem_id="blog_id_input")
     delete_btn = gr.Button("Delete", visible=False, elem_id="delete_btn")
     
@@ -964,11 +1101,43 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         outputs=[blog_cards_output]
     )
     
+    # Hidden components for blog operations
+    blog_id_input = gr.Textbox(visible=False, elem_id="blog_id_input")
+    delete_btn = gr.Button("Delete", visible=False, elem_id="delete_btn")
+    
     delete_btn.click(
         fn=delete_blog_from_storage,
         inputs=[blog_id_input],
         outputs=[blog_cards_output]
     )
+    
+    # State management refresh
+    def refresh_state_status():
+        """Refresh the state management status display"""
+        summary = state_manager.get_state_summary()
+        return f"""
+        <div style="
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            margin: 10px 0;
+            font-size: 0.9rem;
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <strong>💾 State Management:</strong> 
+                    <span style="opacity: 0.9;">{summary['total_blogs']} blogs saved</span>
+                </div>
+                <div style="opacity: 0.8; font-size: 0.8rem;">
+                    Last saved: {summary['last_save_time'] or 'Never'}
+                </div>
+            </div>
+        </div>
+        """
+    
+    # Note: Auto-refresh is not supported in this Gradio version
+    # State status will be updated when new blogs are generated
     
     get_blogs_trigger.click(
         fn=get_current_blogs_data,
@@ -980,7 +1149,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     gr.HTML(f"""
     <script>
     // Global variables for blog data - synchronized with Python backend
-    let blogsData = {json.dumps(blogs_storage)};
+    let blogsData = {json.dumps(state_manager.blogs_storage)};
     
     // Function to update blogs data from Python backend
     function updateBlogsData(newData) {{
@@ -992,7 +1161,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         // This function will be called to get the most recent data from Python
         // For now, we'll use the initial data, but in a real implementation,
         // this would make an AJAX call to get the latest data
-        return {json.dumps(blogs_storage)};
+        return {json.dumps(state_manager.blogs_storage)};
     }}
     
     // Function to sync JavaScript data with Python data
@@ -1097,16 +1266,50 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         // Format content for Medium/Substack style
         const formattedContent = formatContentForArticle(contentToDisplay);
         
-        // Create modal content
+        // Create modal content with mobile-friendly design
         const modalContent = `
             <div id="viewModal" class="modal" style="display: block;">
-                <div class="modal-content">
-                    <span class="close" onclick="closeModal('viewModal')">&times;</span>
+                <div class="modal-content" style="
+                    width: 95%;
+                    max-width: 900px;
+                    max-height: 90vh;
+                    margin: 2% auto;
+                    border-radius: 16px;
+                    overflow-y: auto;
+                ">
+                    <span class="close" onclick="closeModal('viewModal')" style="
+                        position: absolute;
+                        right: 20px;
+                        top: 15px;
+                        font-size: 28px;
+                        font-weight: bold;
+                        cursor: pointer;
+                        z-index: 1001;
+                        color: #aaa;
+                    ">&times;</span>
                     
                     <!-- Article Header -->
-                    <div class="article-header">
-                        <h1 class="article-title">${{targetBlog.title}}</h1>
-                        <div class="article-meta">
+                    <div class="article-header" style="
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 30px 20px;
+                        border-radius: 16px 16px 0 0;
+                        position: relative;
+                    ">
+                        <h1 class="article-title" style="
+                            font-size: clamp(1.5rem, 4vw, 2.5rem);
+                            font-weight: 800;
+                            line-height: 1.2;
+                            margin-bottom: 20px;
+                            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                        ">${{targetBlog.title}}</h1>
+                        <div class="article-meta" style="
+                            display: flex;
+                            flex-wrap: wrap;
+                            gap: 10px;
+                            font-size: 0.9rem;
+                            opacity: 0.9;
+                        ">
                             <span>📌 ${{targetBlog.topic}}</span>
                             <span>🌍 ${{targetBlog.language}}</span>
                             <span>🏷️ ${{targetBlog.category}}</span>
@@ -1115,27 +1318,40 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                     </div>
                     
                     <!-- Article Content -->
-                    <div class="article-content">
+                    <div class="article-content" style="
+                        padding: 30px 20px;
+                        line-height: 1.8;
+                        font-size: 1.1rem;
+                        color: #374151;
+                        font-family: 'Georgia', serif;
+                        min-height: 400px;
+                        overflow-y: auto;
+                        max-height: 60vh;
+                    ">
                         ${{formattedContent}}
                     </div>
                     
                     <!-- Action Buttons -->
                     <div style="
-                        padding: 20px 30px;
+                        padding: 20px;
                         border-top: 1px solid #e5e7eb;
                         text-align: center;
                         background: #f9fafb;
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 10px;
+                        justify-content: center;
                     ">
                         <button onclick="editBlogModal('${{blogId}}')" style="
                             background: #f59e0b;
                             color: white;
                             border: none;
-                            padding: 12px 24px;
+                            padding: 12px 20px;
                             border-radius: 8px;
                             cursor: pointer;
-                            font-size: 1rem;
-                            margin-right: 12px;
+                            font-size: 0.9rem;
                             font-weight: 600;
+                            min-width: 120px;
                         ">
                             ✏️ Edit Article
                         </button>
@@ -1143,11 +1359,12 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                             background: #6b7280;
                             color: white;
                             border: none;
-                            padding: 12px 24px;
+                            padding: 12px 20px;
                             border-radius: 8px;
                             cursor: pointer;
-                            font-size: 1rem;
+                            font-size: 0.9rem;
                             font-weight: 600;
+                            min-width: 120px;
                         ">
                             Close
                         </button>
@@ -1178,10 +1395,26 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         
         const modalContent = `
             <div id="editModal" class="modal" style="display: block;">
-                <div class="modal-content">
-                    <span class="close" onclick="closeModal('editModal')">&times;</span>
-                    <div style="padding: 30px;">
-                        <h2 style="color: #1f2937; margin-bottom: 20px;">Edit Blog</h2>
+                <div class="modal-content" style="
+                    width: 95%;
+                    max-width: 800px;
+                    max-height: 95vh;
+                    margin: 2% auto;
+                    border-radius: 16px;
+                    overflow-y: auto;
+                ">
+                    <span class="close" onclick="closeModal('editModal')" style="
+                        position: absolute;
+                        right: 20px;
+                        top: 15px;
+                        font-size: 28px;
+                        font-weight: bold;
+                        cursor: pointer;
+                        z-index: 1001;
+                        color: #aaa;
+                    ">&times;</span>
+                    <div style="padding: 30px 20px;">
+                        <h2 style="color: #1f2937; margin-bottom: 20px; font-size: clamp(1.2rem, 3vw, 1.5rem);">Edit Blog</h2>
                         <form id="editForm">
                             <div style="margin-bottom: 16px;">
                                 <label style="display: block; margin-bottom: 8px; font-weight: 600;">Title:</label>
@@ -1191,11 +1424,12 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                                     border: 2px solid #e5e7eb;
                                     border-radius: 8px;
                                     font-size: 1rem;
+                                    box-sizing: border-box;
                                 ">
                             </div>
                             <div style="margin-bottom: 16px;">
                                 <label style="display: block; margin-bottom: 8px; font-weight: 600;">Content:</label>
-                                <textarea id="editContent" rows="25" style="
+                                <textarea id="editContent" rows="20" style="
                                     width: 100%;
                                     padding: 12px;
                                     border: 2px solid #e5e7eb;
@@ -1203,9 +1437,10 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                                     font-size: 1rem;
                                     resize: vertical;
                                     font-family: 'Georgia', serif;
-                                    min-height: 500px;
-                                    max-height: 70vh;
+                                    min-height: 400px;
+                                    max-height: 50vh;
                                     overflow-y: auto;
+                                    box-sizing: border-box;
                                 ">${{fullContent || targetBlog.content || ''}}</textarea>
                             </div>
                             <div style="margin-bottom: 20px;">
@@ -1216,6 +1451,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                                     border: 2px solid #e5e7eb;
                                     border-radius: 8px;
                                     font-size: 1rem;
+                                    box-sizing: border-box;
                                 ">
                                     <option value="Technology" ${{targetBlog.category === 'Technology' ? 'selected' : ''}}>Technology</option>
                                     <option value="Artificial Intelligence" ${{targetBlog.category === 'Artificial Intelligence' ? 'selected' : ''}}>Artificial Intelligence</option>
@@ -1228,17 +1464,17 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                                     <option value="Mental Health" ${{targetBlog.category === 'Mental Health' ? 'selected' : ''}}>Mental Health</option>
                                 </select>
                             </div>
-                            <div style="text-align: center;">
+                            <div style="text-align: center; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
                                 <button type="button" onclick="saveBlogEdit('${{blogId}}')" style="
                                     background: #10b981;
                                     color: white;
                                     border: none;
-                                    padding: 12px 24px;
+                                    padding: 12px 20px;
                                     border-radius: 8px;
                                     cursor: pointer;
-                                    font-size: 1rem;
-                                    margin-right: 12px;
+                                    font-size: 0.9rem;
                                     font-weight: 600;
+                                    min-width: 120px;
                                 ">
                                     💾 Save Changes
                                 </button>
@@ -1246,11 +1482,12 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                                     background: #6b7280;
                                     color: white;
                                     border: none;
-                                    padding: 12px 24px;
+                                    padding: 12px 20px;
                                     border-radius: 8px;
                                     cursor: pointer;
-                                    font-size: 1rem;
+                                    font-size: 0.9rem;
                                     font-weight: 600;
+                                    min-width: 120px;
                                 ">
                                     Cancel
                                 </button>
