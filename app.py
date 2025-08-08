@@ -173,6 +173,9 @@ def initialize_app_state():
     
     return initial_cards
 
+# Initialize the app state
+initial_blog_cards = initialize_app_state()
+
 # Supported languages
 SUPPORTED_LANGUAGES = [
     "English",
@@ -337,7 +340,7 @@ def generate_blog(topic: str, language: str) -> Dict[str, Any]:
         return {
             "success": False,
             "error": "Connection failed",
-            "message": f"Cannot connect to API at {API_ENDPOINT}. Please check if the API server is running."
+            "message": f"Cannot connect to API at {API_ENDPOINT}. Please check if the API server is running. If you're using Hugging Face Spaces, make sure to set the API_BASE_URL secret to your Railway API endpoint."
         }
     except requests.exceptions.Timeout:
         return {
@@ -346,11 +349,18 @@ def generate_blog(topic: str, language: str) -> Dict[str, Any]:
             "message": "The API request timed out. Please try again."
         }
     except requests.exceptions.HTTPError as e:
-        return {
-            "success": False,
-            "error": "HTTP error",
-            "message": f"API returned error {e.response.status_code}: {e.response.text}"
-        }
+        if e.response.status_code == 502:
+            return {
+                "success": False,
+                "error": "API server error (502)",
+                "message": f"The API server is not responding (502 error). Please check if your FastAPI backend is running. Current API endpoint: {API_ENDPOINT}"
+            }
+        else:
+            return {
+                "success": False,
+                "error": "HTTP error",
+                "message": f"API returned error {e.response.status_code}: {e.response.text}"
+            }
     except Exception as e:
         return {
             "success": False,
@@ -685,7 +695,7 @@ def generate_and_save_blog(topic: str, language: str) -> tuple:
     print(f"📦 Current blogs_storage: {blogs_storage}")
     
     # Generate all blog cards
-    all_cards = generate_blog_cards(blogs_storage, current_filter)
+    all_cards = generate_blog_cards(state_manager.blogs_storage, state_manager.current_filter)
     
     success_message = f"✅ Blog '{blog['title']}' generated and saved successfully!"
     print(f"✅ {success_message}")
@@ -736,29 +746,27 @@ def generate_blog_cards(blogs: List[Dict], selected_category: str) -> str:
 
 def filter_blogs_by_category(selected_category: str) -> str:
     """Filter blogs by category"""
-    global current_filter
-    current_filter = selected_category
-    
     # Update the state manager's current filter
     state_manager.current_filter = selected_category
     
-    return generate_blog_cards(state_manager.get_blogs(selected_category), selected_category)
+    # Get fresh data from state manager
+    current_blogs = state_manager.get_blogs(selected_category)
+    
+    return generate_blog_cards(current_blogs, selected_category)
 
 def delete_blog_from_storage(blog_id: str) -> str:
     """Delete a blog from storage"""
-    global blogs_storage
-    
     # Delete via state manager
     success = state_manager.delete_blog(blog_id)
     
     if success:
-        # Refresh global variables to stay in sync
-        refresh_global_variables()
-        print(f"🗑️ Blog deleted successfully. Remaining blogs: {len(blogs_storage)}")
+        print(f"🗑️ Blog deleted successfully. Remaining blogs: {len(state_manager.blogs_storage)}")
     else:
         print(f"⚠️ Blog deletion failed for ID: {blog_id}")
     
-    return generate_blog_cards(blogs_storage, current_filter)
+    # Get fresh data from state manager
+    current_blogs = state_manager.get_blogs(state_manager.current_filter)
+    return generate_blog_cards(current_blogs, state_manager.current_filter)
 
 def get_blog_by_id(blog_id: str) -> Optional[Dict]:
     """Get a blog by its ID"""
@@ -766,8 +774,6 @@ def get_blog_by_id(blog_id: str) -> Optional[Dict]:
 
 def update_blog(blog_id: str, title: str, content: str, category: str) -> str:
     """Update a blog"""
-    global blogs_storage
-    
     # Update via state manager
     success = state_manager.update_blog(blog_id, {
         'title': clean_title(title), 
@@ -776,13 +782,13 @@ def update_blog(blog_id: str, title: str, content: str, category: str) -> str:
     })
     
     if success:
-        # Refresh global variables to stay in sync
-        refresh_global_variables()
-        print(f"✏️ Blog updated successfully. Total blogs: {len(blogs_storage)}")
+        print(f"✏️ Blog updated successfully. Total blogs: {len(state_manager.blogs_storage)}")
     else:
         print(f"⚠️ Blog update failed for ID: {blog_id}")
     
-    return generate_blog_cards(blogs_storage, current_filter)
+    # Get fresh data from state manager
+    current_blogs = state_manager.get_blogs(state_manager.current_filter)
+    return generate_blog_cards(current_blogs, state_manager.current_filter)
 
 def check_api_status() -> str:
     """Check if the API is available"""
@@ -1151,7 +1157,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     
     def get_current_blogs_data():
         """Get current blogs data for JavaScript"""
-        return blogs_storage
+        return state_manager.blogs_storage
     
     # Event handlers
     generate_btn.click(
