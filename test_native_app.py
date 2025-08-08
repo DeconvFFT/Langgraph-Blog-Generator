@@ -8,7 +8,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from hf_spaces_app_native import demo
+    from hf_spaces_app import demo
     print("✅ Native app imported successfully!")
     
     # Test launch
