@@ -158,6 +158,9 @@ def generate_blog(topic: str, language: str) -> Dict[str, Any]:
             "language": language
         }
         
+        print(f"🌐 Making API request to: {API_ENDPOINT}")
+        print(f"📤 Request payload: {payload}")
+        
         response = requests.post(
             API_ENDPOINT,
             json=payload,
@@ -166,7 +169,12 @@ def generate_blog(topic: str, language: str) -> Dict[str, Any]:
         )
         
         response.raise_for_status()
-        return response.json()
+        api_response = response.json()
+        
+        print(f"📥 API Response Status: {response.status_code}")
+        print(f"📥 API Response: {api_response}")
+        
+        return api_response
         
     except requests.exceptions.ConnectionError:
         return {
@@ -447,34 +455,55 @@ def generate_and_save_blog(topic: str, language: str) -> tuple:
     if not topic.strip():
         return "", "⚠️ Please enter a topic for the blog."
     
+    print(f"🚀 Starting blog generation for topic: {topic}")
+    print(f"🌍 Language: {language}")
+    
     # Generate blog
     result = generate_blog(topic, language)
     
+    print(f"📊 Generation result: {result}")
+    
     if not result.get('success', False):
         error_message = f"❌ {result.get('message', 'An error occurred')}"
+        print(f"❌ Generation failed: {error_message}")
         return "", error_message
     
     # Extract blog data
     data = result.get('data', {})
     blog_content = data.get('blog', {})
     
+    print(f"📋 Extracted data: {data}")
+    print(f"📝 Blog content: {blog_content}")
+    
     if not blog_content:
+        print("❌ No blog content found in API response")
         return "", "❌ No blog content was generated."
     
     # Get the generated title and clean it
     generated_title = blog_content.get('title', f'Blog about {topic}')
     cleaned_title = clean_title(generated_title)
     
+    print(f"📌 Generated title: {generated_title}")
+    print(f"🧹 Cleaned title: {cleaned_title}")
+    
     # Check for duplicate blog
     if check_duplicate_blog(cleaned_title):
+        print(f"⚠️ Duplicate blog found: {cleaned_title}")
         return "", "❌ Blog already exists with this title."
     
     # Clean the content
     raw_content = blog_content.get('content', '')
     if not raw_content:
+        print("❌ No content found in API response")
         return "", "❌ No content was generated in the API response."
     
+    print(f"📄 Raw content length: {len(raw_content)} characters")
+    print(f"📄 Raw content preview: {raw_content[:200]}...")
+    
     cleaned_content = clean_content(raw_content)
+    
+    print(f"🧹 Cleaned content length: {len(cleaned_content)} characters")
+    print(f"🧹 Cleaned content preview: {cleaned_content[:200]}...")
     
     # Create blog object
     blog = {
@@ -488,13 +517,19 @@ def generate_and_save_blog(topic: str, language: str) -> tuple:
         'api_response': result
     }
     
+    print(f"💾 Created blog object: {blog}")
+    
     # Add to storage
     blogs_storage.append(blog)
+    
+    print(f"📦 Added to storage. Total blogs: {len(blogs_storage)}")
+    print(f"📦 Current blogs_storage: {blogs_storage}")
     
     # Generate all blog cards
     all_cards = generate_blog_cards(blogs_storage, current_filter)
     
     success_message = f"✅ Blog '{blog['title']}' generated and saved successfully!"
+    print(f"✅ {success_message}")
     
     return all_cards, success_message
 
@@ -990,11 +1025,13 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     
     // Function to find blog by ID - simplified using embedded data
     function findBlogById(blogId) {{
-        console.log('Finding blog with ID:', blogId);
+        console.log('🔍 Finding blog with ID:', blogId);
         
         // Find the blog card in the DOM
         const blogCard = document.querySelector(`[data-blog-id="${{blogId}}"]`);
         if (blogCard) {{
+            console.log('✅ Found blog card in DOM:', blogCard);
+            
             // Extract data from the card's data attributes
             const blog = {{
                 id: blogCard.getAttribute('data-blog-id'),
@@ -1005,27 +1042,34 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                 category: blogCard.getAttribute('data-blog-category'),
                 created_at: blogCard.getAttribute('data-blog-created')
             }};
-            console.log('Found blog in DOM:', blog);
+            
+            console.log('📋 Extracted blog data from DOM:', blog);
+            console.log('📄 Content length from DOM:', blog.content ? blog.content.length : 0);
+            console.log('📄 Content preview from DOM:', blog.content ? blog.content.substring(0, 200) : 'null');
+            
             return blog;
         }}
         
-        console.log('Blog card not found in DOM');
+        console.log('❌ Blog card not found in DOM');
+        console.log('🔍 Available blog cards:', document.querySelectorAll('.blog-card').length);
+        console.log('🔍 Available blog IDs:', Array.from(document.querySelectorAll('.blog-card')).map(card => card.getAttribute('data-blog-id')));
         return null;
     }}
     
     // Function to get full blog content - simplified using embedded data
     function getFullBlogContent(blogId) {{
-        console.log('Getting full content for blog ID:', blogId);
+        console.log('📄 Getting full content for blog ID:', blogId);
         
         // Get the blog card from DOM
         const blogCard = document.querySelector(`[data-blog-id="${{blogId}}"]`);
         if (blogCard) {{
             const content = blogCard.getAttribute('data-blog-content');
-            console.log('Content length from DOM:', content ? content.length : 0);
+            console.log('✅ Content found in DOM, length:', content ? content.length : 0);
+            console.log('📄 Content preview from DOM:', content ? content.substring(0, 200) : 'null');
             return content;
         }}
         
-        console.log('Blog card not found in DOM');
+        console.log('❌ Blog card not found in DOM');
         return '';
     }}
     
