@@ -92,6 +92,15 @@ def generate_blog(topic: str, language: str) -> Dict[str, Any]:
             "message": f"Error: {str(e)}"
         }
 
+def check_duplicate_blog(title: str) -> bool:
+    """Check if a blog with the same title already exists"""
+    global blogs_storage
+    title_lower = title.lower().strip()
+    for blog in blogs_storage:
+        if blog.get('title', '').lower().strip() == title_lower:
+            return True
+    return False
+
 def categorize_blog(topic: str, content: str) -> str:
     """Automatically categorize blog based on topic and content"""
     topic_lower = topic.lower()
@@ -343,10 +352,17 @@ def generate_and_save_blog(topic: str, language: str) -> tuple:
     if not blog_content:
         return "", "❌ No blog content was generated."
     
+    # Get the generated title
+    generated_title = blog_content.get('title', f'Blog about {topic}')
+    
+    # Check for duplicate blog
+    if check_duplicate_blog(generated_title):
+        return "", "❌ Blog already exists with this title."
+    
     # Create blog object
     blog = {
         'id': str(uuid.uuid4()),
-        'title': blog_content.get('title', f'Blog about {topic}'),
+        'title': generated_title,
         'content': blog_content.get('content', ''),
         'topic': topic,
         'language': language,
@@ -673,7 +689,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     
     # Blog Generation Section
     with gr.Row():
-        with gr.Column(scale=2):
+        with gr.Column(scale=3):
             topic_input = gr.Textbox(
                 label="📝 Blog Topic",
                 placeholder="Enter your blog topic here... (e.g., 'The Future of Artificial Intelligence')",
@@ -693,25 +709,6 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                 variant="primary",
                 size="lg"
             )
-        
-        with gr.Column(scale=1):
-            gr.HTML("""
-            <div style="
-                background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-                padding: 24px;
-                border-radius: 16px;
-                border-left: 4px solid #3b82f6;
-            ">
-                <h3 style="margin-top: 0; color: #1f2937;">💡 Features</h3>
-                <ul style="color: #6b7280; line-height: 1.6;">
-                    <li>✅ Auto-categorization</li>
-                    <li>✅ 4-column grid layout</li>
-                    <li>✅ Medium-style article view</li>
-                    <li>✅ Emoji-enhanced content</li>
-                    <li>✅ Full CRUD operations</li>
-                </ul>
-            </div>
-            """)
     
     # Status Section
     with gr.Row():
@@ -776,16 +773,59 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         return blogsData.find(blog => blog.id === blogId);
     }}
     
+    // Function to refresh blogs data from the current page state
+    function refreshBlogsDataFromPage() {{
+        // This function will be called after new blogs are generated
+        // to sync the JavaScript data with the Python backend
+        console.log('Refreshing blogs data from page state...');
+        
+        // Get all blog cards from the page
+        const blogCards = document.querySelectorAll('.blog-card');
+        const newBlogsData = [];
+        
+        blogCards.forEach(card => {{
+            const blogId = card.getAttribute('data-blog-id');
+            const title = card.querySelector('h3').textContent;
+            const topic = card.querySelector('span').textContent.replace('📌 ', '');
+            const language = card.querySelectorAll('span')[1].textContent.replace('🌍 ', '');
+            const category = card.querySelector('div[style*="position: absolute"]').textContent;
+            const created_at = card.querySelector('span[style*="color: #9ca3af"]').textContent.replace('📅 ', '');
+            
+            // Get content from the preview (this is a limitation, but better than nothing)
+            const preview = card.querySelector('p').textContent;
+            
+            newBlogsData.push({{
+                id: blogId,
+                title: title,
+                content: preview + '...', // This is a fallback since we can't get full content
+                topic: topic,
+                language: language,
+                category: category,
+                created_at: created_at
+            }});
+        }});
+        
+        blogsData = newBlogsData;
+        console.log('Blogs data refreshed:', blogsData);
+    }}
+    
     function viewBlogModal(blogId) {{
         // Find blog data
         const blog = findBlogById(blogId);
         if (!blog) {{
-            alert('Blog not found. Please refresh the page and try again.');
-            return;
+            // Try to refresh data and find again
+            refreshBlogsDataFromPage();
+            const refreshedBlog = findBlogById(blogId);
+            if (!refreshedBlog) {{
+                alert('Blog not found. Please refresh the page and try again.');
+                return;
+            }}
         }}
         
+        const targetBlog = blog || findBlogById(blogId);
+        
         // Format content for Medium/Substack style
-        const formattedContent = formatContentForArticle(blog.content);
+        const formattedContent = formatContentForArticle(targetBlog.content);
         
         // Create modal content
         const modalContent = `
@@ -795,12 +835,12 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                     
                     <!-- Article Header -->
                     <div class="article-header">
-                        <h1 class="article-title">${{blog.title}}</h1>
+                        <h1 class="article-title">${{targetBlog.title}}</h1>
                         <div class="article-meta">
-                            <span>📌 ${{blog.topic}}</span>
-                            <span>🌍 ${{blog.language}}</span>
-                            <span>🏷️ ${{blog.category}}</span>
-                            <span>📅 ${{blog.created_at}}</span>
+                            <span>📌 ${{targetBlog.topic}}</span>
+                            <span>🌍 ${{targetBlog.language}}</span>
+                            <span>🏷️ ${{targetBlog.category}}</span>
+                            <span>📅 ${{targetBlog.created_at}}</span>
                         </div>
                     </div>
                     
@@ -852,9 +892,16 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     function editBlogModal(blogId) {{
         const blog = findBlogById(blogId);
         if (!blog) {{
-            alert('Blog not found. Please refresh the page and try again.');
-            return;
+            // Try to refresh data and find again
+            refreshBlogsDataFromPage();
+            const refreshedBlog = findBlogById(blogId);
+            if (!refreshedBlog) {{
+                alert('Blog not found. Please refresh the page and try again.');
+                return;
+            }}
         }}
+        
+        const targetBlog = blog || findBlogById(blogId);
         
         const modalContent = `
             <div id="editModal" class="modal" style="display: block;">
@@ -865,7 +912,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                         <form id="editForm">
                             <div style="margin-bottom: 16px;">
                                 <label style="display: block; margin-bottom: 8px; font-weight: 600;">Title:</label>
-                                <input type="text" id="editTitle" value="${{blog.title}}" style="
+                                <input type="text" id="editTitle" value="${{targetBlog.title}}" style="
                                     width: 100%;
                                     padding: 12px;
                                     border: 2px solid #e5e7eb;
@@ -883,7 +930,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                                     font-size: 1rem;
                                     resize: vertical;
                                     font-family: 'Georgia', serif;
-                                ">${{blog.content}}</textarea>
+                                ">${{targetBlog.content}}</textarea>
                             </div>
                             <div style="margin-bottom: 20px;">
                                 <label style="display: block; margin-bottom: 8px; font-weight: 600;">Category:</label>
@@ -894,20 +941,20 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                                     border-radius: 8px;
                                     font-size: 1rem;
                                 ">
-                                    <option value="Technology" ${{blog.category === 'Technology' ? 'selected' : ''}}>Technology</option>
-                                    <option value="Artificial Intelligence" ${{blog.category === 'Artificial Intelligence' ? 'selected' : ''}}>Artificial Intelligence</option>
-                                    <option value="Machine Learning" ${{blog.category === 'Machine Learning' ? 'selected' : ''}}>Machine Learning</option>
-                                    <option value="Data Science" ${{blog.category === 'Data Science' ? 'selected' : ''}}>Data Science</option>
-                                    <option value="Software Development" ${{blog.category === 'Software Development' ? 'selected' : ''}}>Software Development</option>
-                                    <option value="Business" ${{blog.category === 'Business' ? 'selected' : ''}}>Business</option>
-                                    <option value="Health & Wellness" ${{blog.category === 'Health & Wellness' ? 'selected' : ''}}>Health & Wellness</option>
-                                    <option value="Education" ${{blog.category === 'Education' ? 'selected' : ''}}>Education</option>
-                                    <option value="Travel" ${{blog.category === 'Travel' ? 'selected' : ''}}>Travel</option>
-                                    <option value="Food & Cooking" ${{blog.category === 'Food & Cooking' ? 'selected' : ''}}>Food & Cooking</option>
-                                    <option value="Personal Development" ${{blog.category === 'Personal Development' ? 'selected' : ''}}>Personal Development</option>
-                                    <option value="Science" ${{blog.category === 'Science' ? 'selected' : ''}}>Science</option>
-                                    <option value="Environment" ${{blog.category === 'Environment' ? 'selected' : ''}}>Environment</option>
-                                    <option value="Entertainment" ${{blog.category === 'Entertainment' ? 'selected' : ''}}>Entertainment</option>
+                                    <option value="Technology" ${{targetBlog.category === 'Technology' ? 'selected' : ''}}>Technology</option>
+                                    <option value="Artificial Intelligence" ${{targetBlog.category === 'Artificial Intelligence' ? 'selected' : ''}}>Artificial Intelligence</option>
+                                    <option value="Machine Learning" ${{targetBlog.category === 'Machine Learning' ? 'selected' : ''}}>Machine Learning</option>
+                                    <option value="Data Science" ${{targetBlog.category === 'Data Science' ? 'selected' : ''}}>Data Science</option>
+                                    <option value="Software Development" ${{targetBlog.category === 'Software Development' ? 'selected' : ''}}>Software Development</option>
+                                    <option value="Business" ${{targetBlog.category === 'Business' ? 'selected' : ''}}>Business</option>
+                                    <option value="Health & Wellness" ${{targetBlog.category === 'Health & Wellness' ? 'selected' : ''}}>Health & Wellness</option>
+                                    <option value="Education" ${{targetBlog.category === 'Education' ? 'selected' : ''}}>Education</option>
+                                    <option value="Travel" ${{targetBlog.category === 'Travel' ? 'selected' : ''}}>Travel</option>
+                                    <option value="Food & Cooking" ${{targetBlog.category === 'Food & Cooking' ? 'selected' : ''}}>Food & Cooking</option>
+                                    <option value="Personal Development" ${{targetBlog.category === 'Personal Development' ? 'selected' : ''}}>Personal Development</option>
+                                    <option value="Science" ${{targetBlog.category === 'Science' ? 'selected' : ''}}>Science</option>
+                                    <option value="Environment" ${{targetBlog.category === 'Environment' ? 'selected' : ''}}>Environment</option>
+                                    <option value="Entertainment" ${{targetBlog.category === 'Entertainment' ? 'selected' : ''}}>Entertainment</option>
                                 </select>
                             </div>
                             <div style="text-align: center;">
@@ -1019,11 +1066,14 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         }}
     }}
     
-    // Update blogs data when new blogs are generated
+    // Auto-refresh blogs data after page loads
+    window.addEventListener('load', function() {{
+        setTimeout(refreshBlogsDataFromPage, 1000);
+    }});
+    
+    // Refresh blogs data when new blogs are generated
     function refreshBlogsData() {{
-        // This function can be called to refresh the blogs data
-        // You might need to implement a way to sync with the Python backend
-        console.log('Blogs data refreshed');
+        setTimeout(refreshBlogsDataFromPage, 500);
     }}
     </script>
     """)
