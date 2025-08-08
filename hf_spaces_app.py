@@ -137,9 +137,44 @@ class BlogStateManager:
 # Initialize state manager
 state_manager = BlogStateManager()
 
-# Global variables for compatibility with existing code
-blogs_storage = state_manager.blogs_storage
-current_filter = state_manager.current_filter
+# Global variables for compatibility with existing code - properly synchronized
+def get_blogs_storage():
+    """Get the current blogs storage from state manager"""
+    return state_manager.blogs_storage
+
+def get_current_filter():
+    """Get the current filter from state manager"""
+    return state_manager.current_filter
+
+# Initialize global variables with state manager data
+blogs_storage = get_blogs_storage()
+current_filter = get_current_filter()
+
+# Function to refresh global variables from state manager
+def refresh_global_variables():
+    """Refresh global variables from state manager"""
+    global blogs_storage, current_filter
+    blogs_storage = get_blogs_storage()
+    current_filter = get_current_filter()
+    print(f"🔄 Global variables refreshed: {len(blogs_storage)} blogs, filter: {current_filter}")
+
+def initialize_app_state():
+    """Initialize the app state and ensure proper synchronization"""
+    global blogs_storage, current_filter
+    
+    # Refresh global variables from state manager
+    refresh_global_variables()
+    
+    # Generate initial blog cards
+    initial_cards = generate_blog_cards(blogs_storage, current_filter)
+    
+    print(f"🚀 App initialized with {len(blogs_storage)} blogs")
+    print(f"🎯 Current filter: {current_filter}")
+    
+    return initial_cards
+
+# Initialize the app state
+initial_blog_cards = initialize_app_state()
 
 # Supported languages
 SUPPORTED_LANGUAGES = [
@@ -646,6 +681,9 @@ def generate_and_save_blog(topic: str, language: str) -> tuple:
     # Add to storage
     state_manager.add_blog(blog)
     
+    # Refresh global variables to stay in sync
+    refresh_global_variables()
+    
     print(f"📦 Added to storage. Total blogs: {len(blogs_storage)}")
     print(f"📦 Current blogs_storage: {blogs_storage}")
     
@@ -701,12 +739,28 @@ def generate_blog_cards(blogs: List[Dict], selected_category: str) -> str:
 
 def filter_blogs_by_category(selected_category: str) -> str:
     """Filter blogs by category"""
+    global current_filter
+    current_filter = selected_category
+    
+    # Update the state manager's current filter
+    state_manager.current_filter = selected_category
+    
     return generate_blog_cards(state_manager.get_blogs(selected_category), selected_category)
 
 def delete_blog_from_storage(blog_id: str) -> str:
     """Delete a blog from storage"""
     global blogs_storage
-    state_manager.delete_blog(blog_id)
+    
+    # Delete via state manager
+    success = state_manager.delete_blog(blog_id)
+    
+    if success:
+        # Refresh global variables to stay in sync
+        refresh_global_variables()
+        print(f"🗑️ Blog deleted successfully. Remaining blogs: {len(blogs_storage)}")
+    else:
+        print(f"⚠️ Blog deletion failed for ID: {blog_id}")
+    
     return generate_blog_cards(blogs_storage, current_filter)
 
 def get_blog_by_id(blog_id: str) -> Optional[Dict]:
@@ -716,7 +770,21 @@ def get_blog_by_id(blog_id: str) -> Optional[Dict]:
 def update_blog(blog_id: str, title: str, content: str, category: str) -> str:
     """Update a blog"""
     global blogs_storage
-    state_manager.update_blog(blog_id, {'title': clean_title(title), 'content': clean_content(content), 'category': category})
+    
+    # Update via state manager
+    success = state_manager.update_blog(blog_id, {
+        'title': clean_title(title), 
+        'content': clean_content(content), 
+        'category': category
+    })
+    
+    if success:
+        # Refresh global variables to stay in sync
+        refresh_global_variables()
+        print(f"✏️ Blog updated successfully. Total blogs: {len(blogs_storage)}")
+    else:
+        print(f"⚠️ Blog update failed for ID: {blog_id}")
+    
     return generate_blog_cards(blogs_storage, current_filter)
 
 def check_api_status() -> str:
@@ -1073,9 +1141,9 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     with gr.Row():
         blog_cards_output = gr.HTML(
             label="📄 Your Blog Portfolio",
-            value=generate_blog_cards(state_manager.get_blogs("All"), "All")
+            value=initial_blog_cards
         )
-    
+
     # Hidden components for blog operations
     blog_id_input = gr.Textbox(visible=False, elem_id="blog_id_input")
     delete_btn = gr.Button("Delete", visible=False, elem_id="delete_btn")
