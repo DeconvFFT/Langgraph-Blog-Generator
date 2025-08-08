@@ -191,7 +191,7 @@ class BlogNode:
                         - Use bullet points and numbered lists with emojis
                         - End with a thought-provoking conclusion
                         - Use emojis strategically to enhance readability and engagement
-                        - Minimum 600 words
+                        - Minimum 1200 words
                         - Do NOT include the title - only the content
                         
                         Make sure the content flows naturally and feels like a high-quality Medium or Substack article!
