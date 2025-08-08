@@ -8,18 +8,37 @@ class GroqLLM:
         load_dotenv()
     
     def get_llm(self):
-        self.groq_api_key = os.getenv('GROQ_API_KEY')
-        if self.groq_api_key:
-            os.environ['GROQ_API_KEY'] = self.groq_api_key
-        else:
-            self.groq_api_key = input('Please enter your groq API key!!')
+        """
+        Initialize and return a ChatGroq LLM instance
         
-        ## check validity of groq API KEY
+        Returns:
+            ChatGroq: Configured LLM instance
+            
+        Raises:
+            ValueError: If API key is invalid or LLM initialization fails
+        """
+        self.groq_api_key = os.getenv('GROQ_API_KEY')
+        if not self.groq_api_key:
+            self.groq_api_key = input('Please enter your groq API key: ')
+            if not self.groq_api_key.strip():
+                raise ValueError("❌ Groq API key cannot be empty")
+        
+        # Set environment variable for the API key
+        os.environ['GROQ_API_KEY'] = self.groq_api_key
+        
+        # Initialize and validate the LLM
         try:
-            llm = ChatGroq(model = 'qwen/qwen3-32b', api_key=self.groq_api_key)
+            llm = ChatGroq(
+                model='llama3-8b-8192',  # Using a more reliable model
+                temperature=0.7,
+                max_tokens=2048
+            )
+            # Test the LLM with a simple call to validate the API key
+            test_response = llm.invoke("Hello")
+            if not test_response:
+                raise ValueError("LLM test call failed")
             return llm
         except Exception as e:
-            raise ValueError(f'‼️ Error occured with exception: {e}')
-        
+            raise ValueError(f'❌ Error initializing Groq LLM: {str(e)}')
             
         
