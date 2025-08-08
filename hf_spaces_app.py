@@ -42,7 +42,7 @@ blogs_storage = []
 current_filter = "All"
 
 def generate_blog(topic: str, language: str) -> Dict[str, Any]:
-    """Generate a blog using the API"""
+    """Generate a blog using the API with enhanced prompts for emojis and better formatting"""
     if not topic.strip():
         return {
             "success": False,
@@ -51,8 +51,27 @@ def generate_blog(topic: str, language: str) -> Dict[str, Any]:
         }
     
     try:
+        # Enhanced prompt with emojis and better formatting
+        enhanced_prompt = f"""
+        Create an engaging blog post about: {topic.strip()}
+        
+        Requirements:
+        - Write in {language}
+        - Add relevant emojis throughout the content to make it more engaging and fun to read
+        - Use proper markdown formatting with headers, bullet points, and emphasis
+        - Include a compelling introduction that hooks the reader
+        - Structure the content with clear sections and subheadings
+        - Add emojis to section headers and key points
+        - Make the content informative yet entertaining
+        - Include practical examples or tips where relevant
+        - End with a thought-provoking conclusion
+        - Use emojis strategically to enhance readability and engagement
+        
+        Make sure the content flows naturally and feels like a high-quality Medium or Substack article!
+        """
+        
         payload = {
-            "topic": topic.strip(),
+            "topic": enhanced_prompt,
             "language": language
         }
         
@@ -105,7 +124,7 @@ def categorize_blog(topic: str, content: str) -> str:
     return "Technology"  # Default category
 
 def create_blog_card(blog: Dict[str, Any]) -> str:
-    """Create HTML card for a blog"""
+    """Create HTML card for a blog with 4-column grid layout"""
     blog_id = blog.get('id', 'unknown')
     title = blog.get('title', 'Untitled')
     content = blog.get('content', 'No content available')
@@ -142,12 +161,15 @@ def create_blog_card(blog: Dict[str, Any]) -> str:
         background: white;
         border-radius: 16px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        padding: 24px;
-        margin: 16px 0;
+        padding: 20px;
+        margin: 12px 0;
         border: 1px solid #e5e7eb;
         transition: all 0.3s ease;
         position: relative;
         overflow: hidden;
+        height: 400px;
+        display: flex;
+        flex-direction: column;
     ">
         <!-- Category Badge -->
         <div style="
@@ -162,6 +184,7 @@ def create_blog_card(blog: Dict[str, Any]) -> str:
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            z-index: 10;
         ">
             {category}
         </div>
@@ -169,16 +192,17 @@ def create_blog_card(blog: Dict[str, Any]) -> str:
         <!-- Blog Image Placeholder -->
         <div style="
             width: 100%;
-            height: 200px;
+            height: 120px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 12px;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 3rem;
+            font-size: 2rem;
             font-weight: bold;
+            flex-shrink: 0;
         ">
             📝
         </div>
@@ -187,9 +211,10 @@ def create_blog_card(blog: Dict[str, Any]) -> str:
         <h3 style="
             margin: 0 0 12px 0;
             color: #1f2937;
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             font-weight: 700;
             line-height: 1.3;
+            flex-shrink: 0;
         ">
             {title}
         </h3>
@@ -197,21 +222,22 @@ def create_blog_card(blog: Dict[str, Any]) -> str:
         <!-- Topic and Language -->
         <div style="
             display: flex;
-            gap: 12px;
-            margin-bottom: 16px;
-            font-size: 0.875rem;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-size: 0.8rem;
             color: #6b7280;
+            flex-shrink: 0;
         ">
             <span style="
                 background: #f3f4f6;
-                padding: 4px 8px;
+                padding: 3px 6px;
                 border-radius: 6px;
             ">
-                📌 {topic}
+                📌 {topic[:20]}{'...' if len(topic) > 20 else ''}
             </span>
             <span style="
                 background: #f3f4f6;
-                padding: 4px 8px;
+                padding: 3px 6px;
                 border-radius: 6px;
             ">
                 🌍 {language}
@@ -221,9 +247,14 @@ def create_blog_card(blog: Dict[str, Any]) -> str:
         <!-- Content Preview -->
         <p style="
             color: #4b5563;
-            line-height: 1.6;
-            margin: 0 0 20px 0;
-            font-size: 0.95rem;
+            line-height: 1.5;
+            margin: 0 0 16px 0;
+            font-size: 0.9rem;
+            flex-grow: 1;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
         ">
             {preview}
         </p>
@@ -233,25 +264,26 @@ def create_blog_card(blog: Dict[str, Any]) -> str:
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding-top: 16px;
+            padding-top: 12px;
             border-top: 1px solid #e5e7eb;
+            flex-shrink: 0;
         ">
             <span style="
                 color: #9ca3af;
-                font-size: 0.8rem;
+                font-size: 0.75rem;
             ">
                 📅 {created_at}
             </span>
             
-            <div style="display: flex; gap: 8px;">
+            <div style="display: flex; gap: 6px;">
                 <button onclick="viewBlogModal('{blog_id}')" style="
                     background: #3b82f6;
                     color: white;
                     border: none;
-                    padding: 8px 16px;
-                    border-radius: 8px;
+                    padding: 6px 12px;
+                    border-radius: 6px;
                     cursor: pointer;
-                    font-size: 0.875rem;
+                    font-size: 0.8rem;
                     font-weight: 600;
                     transition: background 0.2s ease;
                 " onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
@@ -261,10 +293,10 @@ def create_blog_card(blog: Dict[str, Any]) -> str:
                     background: #f59e0b;
                     color: white;
                     border: none;
-                    padding: 8px 16px;
-                    border-radius: 8px;
+                    padding: 6px 12px;
+                    border-radius: 6px;
                     cursor: pointer;
-                    font-size: 0.875rem;
+                    font-size: 0.8rem;
                     font-weight: 600;
                     transition: background 0.2s ease;
                 " onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'">
@@ -274,14 +306,14 @@ def create_blog_card(blog: Dict[str, Any]) -> str:
                     background: #ef4444;
                     color: white;
                     border: none;
-                    padding: 8px 16px;
-                    border-radius: 8px;
+                    padding: 6px 12px;
+                    border-radius: 6px;
                     cursor: pointer;
-                    font-size: 0.875rem;
+                    font-size: 0.8rem;
                     font-weight: 600;
                     transition: background 0.2s ease;
                 " onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
-                    🗑️ Delete
+                    🗑️
                 </button>
             </div>
         </div>
@@ -334,7 +366,7 @@ def generate_and_save_blog(topic: str, language: str) -> tuple:
     return all_cards, success_message
 
 def generate_blog_cards(blogs: List[Dict], selected_category: str) -> str:
-    """Generate HTML for all blog cards"""
+    """Generate HTML for all blog cards in 4-column grid layout"""
     global current_filter
     current_filter = selected_category
     
@@ -370,10 +402,11 @@ def generate_blog_cards(blogs: List[Dict], selected_category: str) -> str:
         </div>
         """
     
-    # Generate cards HTML
-    cards_html = ""
+    # Generate cards HTML with 4-column grid
+    cards_html = '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding: 20px;">'
     for blog in filtered_blogs:
         cards_html += create_blog_card(blog)
+    cards_html += '</div>'
     
     return cards_html
 
@@ -416,7 +449,7 @@ custom_css = """
 }
 
 .gradio-container {
-    max-width: 1400px;
+    max-width: 1600px;
     margin: 0 auto;
 }
 
@@ -478,12 +511,12 @@ custom_css = """
 
 .modal-content {
     background-color: white;
-    margin: 5% auto;
-    padding: 30px;
+    margin: 2% auto;
+    padding: 0;
     border-radius: 16px;
-    width: 90%;
-    max-width: 800px;
-    max-height: 80vh;
+    width: 95%;
+    max-width: 900px;
+    max-height: 90vh;
     overflow-y: auto;
     position: relative;
     box-shadow: 0 20px 40px rgba(0,0,0,0.3);
@@ -498,10 +531,114 @@ custom_css = """
     position: absolute;
     right: 20px;
     top: 15px;
+    z-index: 1001;
 }
 
 .close:hover {
     color: #000;
+}
+
+/* Medium/Substack article styling */
+.article-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 40px 30px;
+    border-radius: 16px 16px 0 0;
+    position: relative;
+}
+
+.article-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 20px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.article-meta {
+    display: flex;
+    gap: 20px;
+    font-size: 1rem;
+    opacity: 0.9;
+}
+
+.article-content {
+    padding: 40px 30px;
+    line-height: 1.8;
+    font-size: 1.1rem;
+    color: #374151;
+    font-family: 'Georgia', serif;
+}
+
+.article-content h1, .article-content h2, .article-content h3 {
+    color: #1f2937;
+    margin-top: 40px;
+    margin-bottom: 20px;
+    font-weight: 700;
+}
+
+.article-content h1 {
+    font-size: 2rem;
+}
+
+.article-content h2 {
+    font-size: 1.5rem;
+}
+
+.article-content h3 {
+    font-size: 1.25rem;
+}
+
+.article-content p {
+    margin-bottom: 20px;
+}
+
+.article-content ul, .article-content ol {
+    margin-bottom: 20px;
+    padding-left: 30px;
+}
+
+.article-content li {
+    margin-bottom: 8px;
+}
+
+.article-content blockquote {
+    border-left: 4px solid #3b82f6;
+    padding-left: 20px;
+    margin: 30px 0;
+    font-style: italic;
+    color: #6b7280;
+    background: #f9fafb;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.article-content strong {
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.article-content em {
+    font-style: italic;
+}
+
+/* Responsive grid */
+@media (max-width: 1200px) {
+    .blog-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 900px) {
+    .blog-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .blog-grid {
+        grid-template-columns: 1fr;
+    }
 }
 </style>
 """
@@ -568,10 +705,10 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                 <h3 style="margin-top: 0; color: #1f2937;">💡 Features</h3>
                 <ul style="color: #6b7280; line-height: 1.6;">
                     <li>✅ Auto-categorization</li>
-                    <li>✅ View full blog content</li>
-                    <li>✅ Edit blog details</li>
-                    <li>✅ Delete blogs</li>
-                    <li>✅ Filter by category</li>
+                    <li>✅ 4-column grid layout</li>
+                    <li>✅ Medium-style article view</li>
+                    <li>✅ Emoji-enhanced content</li>
+                    <li>✅ Full CRUD operations</li>
                 </ul>
             </div>
             """)
@@ -623,56 +760,84 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         outputs=[blog_cards_output]
     )
     
-    # Add JavaScript for advanced blog management
-    gr.HTML("""
+    # Add JavaScript for advanced blog management with proper data synchronization
+    gr.HTML(f"""
     <script>
-    // Global variables for blog data
-    let blogsData = [];
+    // Global variables for blog data - synchronized with Python backend
+    let blogsData = {json.dumps(blogs_storage)};
     
-    function viewBlogModal(blogId) {
+    // Function to update blogs data from Python backend
+    function updateBlogsData(newData) {{
+        blogsData = newData;
+    }}
+    
+    // Function to find blog by ID
+    function findBlogById(blogId) {{
+        return blogsData.find(blog => blog.id === blogId);
+    }}
+    
+    function viewBlogModal(blogId) {{
         // Find blog data
-        const blog = blogsData.find(b => b.id === blogId);
-        if (!blog) {
-            alert('Blog not found');
+        const blog = findBlogById(blogId);
+        if (!blog) {{
+            alert('Blog not found. Please refresh the page and try again.');
             return;
-        }
+        }}
+        
+        // Format content for Medium/Substack style
+        const formattedContent = formatContentForArticle(blog.content);
         
         // Create modal content
         const modalContent = `
             <div id="viewModal" class="modal" style="display: block;">
                 <div class="modal-content">
                     <span class="close" onclick="closeModal('viewModal')">&times;</span>
-                    <h2 style="color: #1f2937; margin-bottom: 20px;">${blog.title}</h2>
-                    <div style="margin-bottom: 20px;">
-                        <span style="background: #f3f4f6; padding: 4px 8px; border-radius: 6px; margin-right: 8px;">
-                            📌 ${blog.topic}
-                        </span>
-                        <span style="background: #f3f4f6; padding: 4px 8px; border-radius: 6px; margin-right: 8px;">
-                            🌍 ${blog.language}
-                        </span>
-                        <span style="background: #f3f4f6; padding: 4px 8px; border-radius: 6px;">
-                            🏷️ ${blog.category}
-                        </span>
+                    
+                    <!-- Article Header -->
+                    <div class="article-header">
+                        <h1 class="article-title">${{blog.title}}</h1>
+                        <div class="article-meta">
+                            <span>📌 ${{blog.topic}}</span>
+                            <span>🌍 ${{blog.language}}</span>
+                            <span>🏷️ ${{blog.category}}</span>
+                            <span>📅 ${{blog.created_at}}</span>
+                        </div>
                     </div>
+                    
+                    <!-- Article Content -->
+                    <div class="article-content">
+                        ${{formattedContent}}
+                    </div>
+                    
+                    <!-- Action Buttons -->
                     <div style="
-                        line-height: 1.8;
-                        color: #374151;
-                        white-space: pre-wrap;
-                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                        max-height: 400px;
-                        overflow-y: auto;
+                        padding: 20px 30px;
+                        border-top: 1px solid #e5e7eb;
+                        text-align: center;
+                        background: #f9fafb;
                     ">
-                        ${blog.content}
-                    </div>
-                    <div style="margin-top: 20px; text-align: center;">
+                        <button onclick="editBlogModal('${{blogId}}')" style="
+                            background: #f59e0b;
+                            color: white;
+                            border: none;
+                            padding: 12px 24px;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            font-size: 1rem;
+                            margin-right: 12px;
+                            font-weight: 600;
+                        ">
+                            ✏️ Edit Article
+                        </button>
                         <button onclick="closeModal('viewModal')" style="
                             background: #6b7280;
                             color: white;
                             border: none;
-                            padding: 10px 20px;
+                            padding: 12px 24px;
                             border-radius: 8px;
                             cursor: pointer;
                             font-size: 1rem;
+                            font-weight: 600;
                         ">
                             Close
                         </button>
@@ -682,143 +847,184 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         `;
         
         document.body.insertAdjacentHTML('beforeend', modalContent);
-    }
+    }}
     
-    function editBlogModal(blogId) {
-        const blog = blogsData.find(b => b.id === blogId);
-        if (!blog) {
-            alert('Blog not found');
+    function editBlogModal(blogId) {{
+        const blog = findBlogById(blogId);
+        if (!blog) {{
+            alert('Blog not found. Please refresh the page and try again.');
             return;
-        }
+        }}
         
         const modalContent = `
             <div id="editModal" class="modal" style="display: block;">
                 <div class="modal-content">
                     <span class="close" onclick="closeModal('editModal')">&times;</span>
-                    <h2 style="color: #1f2937; margin-bottom: 20px;">Edit Blog</h2>
-                    <form id="editForm">
-                        <div style="margin-bottom: 16px;">
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Title:</label>
-                            <input type="text" id="editTitle" value="${blog.title}" style="
-                                width: 100%;
-                                padding: 12px;
-                                border: 2px solid #e5e7eb;
-                                border-radius: 8px;
-                                font-size: 1rem;
-                            ">
-                        </div>
-                        <div style="margin-bottom: 16px;">
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Content:</label>
-                            <textarea id="editContent" rows="10" style="
-                                width: 100%;
-                                padding: 12px;
-                                border: 2px solid #e5e7eb;
-                                border-radius: 8px;
-                                font-size: 1rem;
-                                resize: vertical;
-                            ">${blog.content}</textarea>
-                        </div>
-                        <div style="margin-bottom: 20px;">
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Category:</label>
-                            <select id="editCategory" style="
-                                width: 100%;
-                                padding: 12px;
-                                border: 2px solid #e5e7eb;
-                                border-radius: 8px;
-                                font-size: 1rem;
-                            ">
-                                <option value="Technology" ${blog.category === 'Technology' ? 'selected' : ''}>Technology</option>
-                                <option value="Artificial Intelligence" ${blog.category === 'Artificial Intelligence' ? 'selected' : ''}>Artificial Intelligence</option>
-                                <option value="Machine Learning" ${blog.category === 'Machine Learning' ? 'selected' : ''}>Machine Learning</option>
-                                <option value="Data Science" ${blog.category === 'Data Science' ? 'selected' : ''}>Data Science</option>
-                                <option value="Software Development" ${blog.category === 'Software Development' ? 'selected' : ''}>Software Development</option>
-                                <option value="Business" ${blog.category === 'Business' ? 'selected' : ''}>Business</option>
-                                <option value="Health & Wellness" ${blog.category === 'Health & Wellness' ? 'selected' : ''}>Health & Wellness</option>
-                                <option value="Education" ${blog.category === 'Education' ? 'selected' : ''}>Education</option>
-                                <option value="Travel" ${blog.category === 'Travel' ? 'selected' : ''}>Travel</option>
-                                <option value="Food & Cooking" ${blog.category === 'Food & Cooking' ? 'selected' : ''}>Food & Cooking</option>
-                                <option value="Personal Development" ${blog.category === 'Personal Development' ? 'selected' : ''}>Personal Development</option>
-                                <option value="Science" ${blog.category === 'Science' ? 'selected' : ''}>Science</option>
-                                <option value="Environment" ${blog.category === 'Environment' ? 'selected' : ''}>Environment</option>
-                                <option value="Entertainment" ${blog.category === 'Entertainment' ? 'selected' : ''}>Entertainment</option>
-                            </select>
-                        </div>
-                        <div style="text-align: center;">
-                            <button type="button" onclick="saveBlogEdit('${blogId}')" style="
-                                background: #10b981;
-                                color: white;
-                                border: none;
-                                padding: 12px 24px;
-                                border-radius: 8px;
-                                cursor: pointer;
-                                font-size: 1rem;
-                                margin-right: 12px;
-                            ">
-                                💾 Save Changes
-                            </button>
-                            <button type="button" onclick="closeModal('editModal')" style="
-                                background: #6b7280;
-                                color: white;
-                                border: none;
-                                padding: 12px 24px;
-                                border-radius: 8px;
-                                cursor: pointer;
-                                font-size: 1rem;
-                            ">
-                                Cancel
-                            </button>
-                        </div>
-                    </form>
+                    <div style="padding: 30px;">
+                        <h2 style="color: #1f2937; margin-bottom: 20px;">Edit Blog</h2>
+                        <form id="editForm">
+                            <div style="margin-bottom: 16px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Title:</label>
+                                <input type="text" id="editTitle" value="${{blog.title}}" style="
+                                    width: 100%;
+                                    padding: 12px;
+                                    border: 2px solid #e5e7eb;
+                                    border-radius: 8px;
+                                    font-size: 1rem;
+                                ">
+                            </div>
+                            <div style="margin-bottom: 16px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Content:</label>
+                                <textarea id="editContent" rows="15" style="
+                                    width: 100%;
+                                    padding: 12px;
+                                    border: 2px solid #e5e7eb;
+                                    border-radius: 8px;
+                                    font-size: 1rem;
+                                    resize: vertical;
+                                    font-family: 'Georgia', serif;
+                                ">${{blog.content}}</textarea>
+                            </div>
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Category:</label>
+                                <select id="editCategory" style="
+                                    width: 100%;
+                                    padding: 12px;
+                                    border: 2px solid #e5e7eb;
+                                    border-radius: 8px;
+                                    font-size: 1rem;
+                                ">
+                                    <option value="Technology" ${{blog.category === 'Technology' ? 'selected' : ''}}>Technology</option>
+                                    <option value="Artificial Intelligence" ${{blog.category === 'Artificial Intelligence' ? 'selected' : ''}}>Artificial Intelligence</option>
+                                    <option value="Machine Learning" ${{blog.category === 'Machine Learning' ? 'selected' : ''}}>Machine Learning</option>
+                                    <option value="Data Science" ${{blog.category === 'Data Science' ? 'selected' : ''}}>Data Science</option>
+                                    <option value="Software Development" ${{blog.category === 'Software Development' ? 'selected' : ''}}>Software Development</option>
+                                    <option value="Business" ${{blog.category === 'Business' ? 'selected' : ''}}>Business</option>
+                                    <option value="Health & Wellness" ${{blog.category === 'Health & Wellness' ? 'selected' : ''}}>Health & Wellness</option>
+                                    <option value="Education" ${{blog.category === 'Education' ? 'selected' : ''}}>Education</option>
+                                    <option value="Travel" ${{blog.category === 'Travel' ? 'selected' : ''}}>Travel</option>
+                                    <option value="Food & Cooking" ${{blog.category === 'Food & Cooking' ? 'selected' : ''}}>Food & Cooking</option>
+                                    <option value="Personal Development" ${{blog.category === 'Personal Development' ? 'selected' : ''}}>Personal Development</option>
+                                    <option value="Science" ${{blog.category === 'Science' ? 'selected' : ''}}>Science</option>
+                                    <option value="Environment" ${{blog.category === 'Environment' ? 'selected' : ''}}>Environment</option>
+                                    <option value="Entertainment" ${{blog.category === 'Entertainment' ? 'selected' : ''}}>Entertainment</option>
+                                </select>
+                            </div>
+                            <div style="text-align: center;">
+                                <button type="button" onclick="saveBlogEdit('${{blogId}}')" style="
+                                    background: #10b981;
+                                    color: white;
+                                    border: none;
+                                    padding: 12px 24px;
+                                    border-radius: 8px;
+                                    cursor: pointer;
+                                    font-size: 1rem;
+                                    margin-right: 12px;
+                                    font-weight: 600;
+                                ">
+                                    💾 Save Changes
+                                </button>
+                                <button type="button" onclick="closeModal('editModal')" style="
+                                    background: #6b7280;
+                                    color: white;
+                                    border: none;
+                                    padding: 12px 24px;
+                                    border-radius: 8px;
+                                    cursor: pointer;
+                                    font-size: 1rem;
+                                    font-weight: 600;
+                                ">
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         `;
         
         document.body.insertAdjacentHTML('beforeend', modalContent);
-    }
+    }}
     
-    function deleteBlogConfirm(blogId) {
-        if (confirm('Are you sure you want to delete this blog? This action cannot be undone.')) {
+    function deleteBlogConfirm(blogId) {{
+        if (confirm('Are you sure you want to delete this blog? This action cannot be undone.')) {{
             // Trigger Gradio delete function
             const deleteBtn = document.querySelector('[data-testid="delete_btn"]');
-            if (deleteBtn) {
+            if (deleteBtn) {{
                 deleteBtn.click();
-            }
-        }
-    }
+            }}
+        }}
+    }}
     
-    function closeModal(modalId) {
+    function closeModal(modalId) {{
         const modal = document.getElementById(modalId);
-        if (modal) {
+        if (modal) {{
             modal.remove();
-        }
-    }
+        }}
+    }}
     
-    function saveBlogEdit(blogId) {
+    function saveBlogEdit(blogId) {{
         const title = document.getElementById('editTitle').value;
         const content = document.getElementById('editContent').value;
         const category = document.getElementById('editCategory').value;
         
         // Update blog data
         const blogIndex = blogsData.findIndex(b => b.id === blogId);
-        if (blogIndex !== -1) {
+        if (blogIndex !== -1) {{
             blogsData[blogIndex].title = title;
             blogsData[blogIndex].content = content;
             blogsData[blogIndex].category = category;
-        }
+        }}
         
         // Close modal
         closeModal('editModal');
         
         // Refresh the display (you might need to trigger a Gradio refresh)
-        alert('Blog updated successfully!');
-    }
+        alert('Blog updated successfully! Please refresh the page to see changes.');
+    }}
+    
+    // Function to format content for Medium/Substack style
+    function formatContentForArticle(content) {{
+        // Convert markdown-like formatting to HTML
+        let formatted = content
+            // Headers
+            .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+            .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+            .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+            // Bold
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            // Italic
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            // Lists
+            .replace(/^\\* (.*$)/gim, '<li>$1</li>')
+            .replace(/^- (.*$)/gim, '<li>$1</li>')
+            // Line breaks
+            .replace(/\\n\\n/g, '</p><p>')
+            .replace(/\\n/g, '<br>');
+        
+        // Wrap in paragraphs
+        formatted = '<p>' + formatted + '</p>';
+        
+        // Fix list formatting
+        formatted = formatted.replace(/<p><li>/g, '<ul><li>');
+        formatted = formatted.replace(/<\\/li><\\/p>/g, '</li></ul>');
+        
+        return formatted;
+    }}
     
     // Close modal when clicking outside
-    window.onclick = function(event) {
-        if (event.target.classList.contains('modal')) {
+    window.onclick = function(event) {{
+        if (event.target.classList.contains('modal')) {{
             event.target.remove();
-        }
-    }
+        }}
+    }}
+    
+    // Update blogs data when new blogs are generated
+    function refreshBlogsData() {{
+        // This function can be called to refresh the blogs data
+        // You might need to implement a way to sync with the Python backend
+        console.log('Blogs data refreshed');
+    }}
     </script>
     """)
 

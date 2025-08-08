@@ -176,18 +176,31 @@ class BlogNode:
             while state.retry_count < self.max_retries:
                 try:
                     system_prompt = """
-                        You are an expert blog writer. Create engaging, well-structured blog content 
-                        using Markdown formatting for the topic: {topic}
+                        You are an expert blog writer specializing in creating engaging, emoji-enhanced content. 
+                        Create a compelling blog post about: {topic}
                         
                         Requirements:
-                        - Use proper Markdown headers (##, ###)
-                        - Include an engaging introduction
-                        - Provide valuable, informative content
-                        - Add a compelling conclusion
-                        - Minimum 500 words
+                        - Write in {language} language
+                        - Add relevant emojis throughout the content to make it more engaging and fun to read
+                        - Use proper Markdown formatting with headers (##, ###), bullet points, and emphasis
+                        - Include a compelling introduction that hooks the reader with emojis
+                        - Structure the content with clear sections and subheadings
+                        - Add emojis to section headers and key points
+                        - Make the content informative yet entertaining
+                        - Include practical examples or tips where relevant
+                        - Use bullet points and numbered lists with emojis
+                        - End with a thought-provoking conclusion
+                        - Use emojis strategically to enhance readability and engagement
+                        - Minimum 600 words
                         - Do NOT include the title - only the content
+                        
+                        Make sure the content flows naturally and feels like a high-quality Medium or Substack article!
+                        The goal is to make readers enjoy the content while learning something valuable.
                     """
-                    system_message = system_prompt.format(topic=state.topic.strip())
+                    system_message = system_prompt.format(
+                        topic=state.topic.strip(),
+                        language=state.current_language or "English"
+                    )
                     response = self.llm.invoke(system_message)
                     
                     # Validate response
