@@ -929,16 +929,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     function getFullBlogContent(blogId) {{
         console.log('Getting full content for blog ID:', blogId);
         
-        // First try to get from current JavaScript data
-        const blog = findBlogById(blogId);
-        console.log('Found blog in current data:', blog);
-        
-        if (blog && blog.content) {{
-            console.log('Content length from current data:', blog.content.length);
-            return blog.content;
-        }}
-        
-        // If not found, try to get from the original Python data
+        // Always get the full content directly from the Python backend data
         const originalData = {json.dumps(blogs_storage)};
         console.log('Original Python data:', originalData);
         
@@ -950,6 +941,15 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
             return originalBlog.content;
         }}
         
+        // Fallback to current JavaScript data
+        const blog = findBlogById(blogId);
+        console.log('Found blog in current data:', blog);
+        
+        if (blog && blog.content) {{
+            console.log('Content length from current data:', blog.content.length);
+            return blog.content;
+        }}
+        
         console.log('No content found for blog ID:', blogId);
         return '';
     }}
@@ -957,27 +957,25 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     function viewBlogModal(blogId) {{
         console.log('Opening view modal for blog ID:', blogId);
         
-        // Find blog data
-        const blog = findBlogById(blogId);
-        if (!blog) {{
-            console.log('Blog not found in current data, refreshing...');
-            // Try to refresh data and find again
-            refreshBlogsDataFromPage();
-            const refreshedBlog = findBlogById(blogId);
-            if (!refreshedBlog) {{
-                alert('Blog not found. Please refresh the page and try again.');
-                return;
-            }}
-        }}
-        
-        const targetBlog = blog || findBlogById(blogId);
-        console.log('Target blog:', targetBlog);
-        
-        // Get the full content from the Python backend
+        // Always get the full content directly from Python backend
         const fullContent = getFullBlogContent(blogId);
         console.log('Full content retrieved, length:', fullContent ? fullContent.length : 0);
         
-        // Use the content we have (fullContent or targetBlog.content)
+        // Get blog metadata from current data or original data
+        let targetBlog = findBlogById(blogId);
+        if (!targetBlog) {{
+            const originalData = {json.dumps(blogs_storage)};
+            targetBlog = originalData.find(b => b.id === blogId);
+        }}
+        
+        if (!targetBlog) {{
+            alert('Blog not found. Please refresh the page and try again.');
+            return;
+        }}
+        
+        console.log('Target blog:', targetBlog);
+        
+        // Use the content we have
         const contentToDisplay = fullContent || targetBlog.content || '';
         console.log('Content to display, length:', contentToDisplay.length);
         
@@ -1047,21 +1045,25 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     }}
     
     function editBlogModal(blogId) {{
-        const blog = findBlogById(blogId);
-        if (!blog) {{
-            // Try to refresh data and find again
-            refreshBlogsDataFromPage();
-            const refreshedBlog = findBlogById(blogId);
-            if (!refreshedBlog) {{
-                alert('Blog not found. Please refresh the page and try again.');
-                return;
-            }}
+        console.log('Opening edit modal for blog ID:', blogId);
+        
+        // Always get the full content directly from Python backend
+        const fullContent = getFullBlogContent(blogId);
+        console.log('Full content for edit, length:', fullContent ? fullContent.length : 0);
+        
+        // Get blog metadata from current data or original data
+        let targetBlog = findBlogById(blogId);
+        if (!targetBlog) {{
+            const originalData = {json.dumps(blogs_storage)};
+            targetBlog = originalData.find(b => b.id === blogId);
         }}
         
-        const targetBlog = blog || findBlogById(blogId);
+        if (!targetBlog) {{
+            alert('Blog not found. Please refresh the page and try again.');
+            return;
+        }}
         
-        // Get the full content from the Python backend
-        const fullContent = getFullBlogContent(blogId);
+        console.log('Target blog for edit:', targetBlog);
         
         const modalContent = `
             <div id="editModal" class="modal" style="display: block;">
@@ -1093,7 +1095,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                                     min-height: 500px;
                                     max-height: 70vh;
                                     overflow-y: auto;
-                                ">${{fullContent || targetBlog.content}}</textarea>
+                                ">${{fullContent || targetBlog.content || ''}}</textarea>
                             </div>
                             <div style="margin-bottom: 20px;">
                                 <label style="display: block; margin-bottom: 8px; font-weight: 600;">Category:</label>
