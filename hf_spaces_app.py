@@ -1543,10 +1543,10 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                  // If we're filtering by a specific category and the blog no longer matches, hide it
                  if (selectedCategory !== 'All' && selectedCategory !== category) {{
                      blogCard.style.display = 'none';
-                     console.log(`🔄 Blog hidden from ${selectedCategory} filter (now categorized as ${category})`);
+                     console.log('🔄 Blog hidden from ' + selectedCategory + ' filter (now categorized as ' + category + ')');
                  }} else if (selectedCategory === 'All' || selectedCategory === category) {{
                      blogCard.style.display = 'block';
-                     console.log(`✅ Blog visible in ${selectedCategory} filter`);
+                     console.log('✅ Blog visible in ' + selectedCategory + ' filter');
                  }}
              }}
              
