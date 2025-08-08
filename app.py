@@ -173,9 +173,6 @@ def initialize_app_state():
     
     return initial_cards
 
-# Initialize the app state
-initial_blog_cards = initialize_app_state()
-
 # Supported languages
 SUPPORTED_LANGUAGES = [
     "English",
@@ -1144,7 +1141,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     with gr.Row():
         blog_cards_output = gr.HTML(
             label="📄 Your Blog Portfolio",
-            value=initialize_app_state() # Initialize here
+            value="<div style='text-align: center; padding: 60px 20px; color: #6b7280;'><div style='font-size: 4rem; margin-bottom: 20px;'>📝</div><h3 style='margin: 0 0 12px 0; color: #374151;'>Loading...</h3><p style='margin: 0; font-size: 1.1rem;'>Initializing your blog portfolio...</p></div>"
         )
 
     # Hidden components for blog operations
@@ -1214,6 +1211,19 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         fn=get_current_blogs_data,
         inputs=[],
         outputs=[blogs_data_output]
+    )
+    
+    # Initialize the app state when it loads
+    def initialize_on_load():
+        """Initialize the app state when the interface loads"""
+        return initialize_app_state()
+    
+    # Add a hidden trigger to initialize state
+    init_trigger = gr.Button("Initialize", visible=False, elem_id="init_trigger")
+    init_trigger.click(
+        fn=initialize_on_load,
+        inputs=[],
+        outputs=[blog_cards_output]
     )
     
     # Add JavaScript for advanced blog management with proper data synchronization
@@ -1676,6 +1686,12 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         setTimeout(() => {{
             syncJavaScriptData();
             debugAvailableBlogs();
+            
+            // Trigger initialization
+            const initBtn = document.querySelector('#init_trigger');
+            if (initBtn) {{
+                initBtn.click();
+            }}
         }}, 1000);
     }});
     

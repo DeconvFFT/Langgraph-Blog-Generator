@@ -175,7 +175,7 @@ if __name__ == '__main__':
     host = os.getenv('HOST', '0.0.0.0')
     
     uvicorn.run(
-        "app:app", 
+        "app_fastapi:app", 
         host=host,
         port=port,
         reload=False,  # Disable reload in production
