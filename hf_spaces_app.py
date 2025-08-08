@@ -1558,6 +1558,14 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
          const updateCategoryInput = document.querySelector('#update_category_input input');
          const updateBtn = document.querySelector('#update_btn');
          
+         console.log('Update components check:', {{
+             updateBlogIdInput: !!updateBlogIdInput,
+             updateTitleInput: !!updateTitleInput,
+             updateContentInput: !!updateContentInput,
+             updateCategoryInput: !!updateCategoryInput,
+             updateBtn: !!updateBtn
+         }});
+         
          if (updateBlogIdInput && updateTitleInput && updateContentInput && updateCategoryInput && updateBtn) {{
              // Set the values
              updateBlogIdInput.value = blogId;
@@ -1579,8 +1587,14 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
              // Show success message
              alert('Blog updated successfully!');
          }} else {{
-             console.error('Update components not found');
-             alert('Update failed. Please try refreshing the page.');
+             console.error('❌ Missing update components:', {{
+                 updateBlogIdInput: !!updateBlogIdInput,
+                 updateTitleInput: !!updateTitleInput,
+                 updateContentInput: !!updateContentInput,
+                 updateCategoryInput: !!updateCategoryInput,
+                 updateBtn: !!updateBtn
+             }});
+             alert('Update failed. Missing required components. Please try refreshing the page.');
          }}
     }}
     
