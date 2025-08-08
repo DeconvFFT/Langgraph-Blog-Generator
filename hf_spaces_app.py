@@ -585,6 +585,27 @@ def filter_blogs_by_category(selected_category: str, blogs_storage: List[Dict]) 
     cards_html = generate_blog_cards(filtered_blogs, selected_category)
     return cards_html, blogs_storage, selected_category
 
+def handle_category_change(selected_category: str, blogs_storage: List[Dict], current_filter: str) -> tuple:
+    """Handle category change and update state properly"""
+    print(f"🔄 Category changed from '{current_filter}' to '{selected_category}'")
+    print(f"📦 Total blogs in storage: {len(blogs_storage)}")
+    
+    # Update the current filter
+    new_filter = selected_category
+    
+    # Filter blogs based on new category
+    if new_filter != "All":
+        filtered_blogs = [blog for blog in blogs_storage if blog.get('category') == new_filter]
+    else:
+        filtered_blogs = blogs_storage
+    
+    print(f"📋 Filtered blogs for '{new_filter}': {len(filtered_blogs)}")
+    
+    # Generate cards for the filtered blogs
+    cards_html = generate_blog_cards(filtered_blogs, new_filter)
+    
+    return cards_html, blogs_storage, new_filter
+
 def delete_blog_from_storage(blog_id: str, blogs_storage: List[Dict], current_filter: str) -> tuple:
     """Delete a blog from storage using Gradio State"""
     # Delete blog
@@ -664,6 +685,18 @@ def get_api_status_message() -> str:
 def refresh_status() -> str:
     """Refresh the API status"""
     return get_api_status_message()
+
+def debug_state(blogs_storage: List[Dict], current_filter: str) -> str:
+    """Debug function to log current state"""
+    print(f"🔍 DEBUG STATE:")
+    print(f"   📦 Total blogs: {len(blogs_storage)}")
+    print(f"   🏷️ Current filter: {current_filter}")
+    print(f"   📋 Blog categories: {list(set(blog.get('category', 'Unknown') for blog in blogs_storage))}")
+    
+    if blogs_storage:
+        print(f"   📝 Sample blog: {blogs_storage[0].get('title', 'No title')} - {blogs_storage[0].get('category', 'No category')}")
+    
+    return f"Debug: {len(blogs_storage)} blogs, filter: {current_filter}"
 
 def get_state_summary(blogs_storage: List[Dict]) -> str:
     """Get a summary of current state for display"""
@@ -984,6 +1017,19 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
             value=get_state_summary([]),
             label="💾 State Status"
         )
+        
+        debug_btn = gr.Button(
+            "🔍 Debug State",
+            size="sm",
+            variant="secondary"
+        )
+    
+    # Debug output
+    debug_output = gr.Textbox(
+        label="🔍 Debug Info",
+        interactive=False,
+        visible=False
+    )
     
     # Category Filter Section
     with gr.Row():
@@ -1005,6 +1051,13 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     blog_id_input = gr.Textbox(visible=False, elem_id="blog_id_input")
     delete_btn = gr.Button("Delete", visible=False, elem_id="delete_btn")
     
+    # Hidden components for blog updates
+    update_blog_id_input = gr.Textbox(visible=False, elem_id="update_blog_id_input")
+    update_title_input = gr.Textbox(visible=False, elem_id="update_title_input")
+    update_content_input = gr.Textbox(visible=False, elem_id="update_content_input")
+    update_category_input = gr.Textbox(visible=False, elem_id="update_category_input")
+    update_btn = gr.Button("Update", visible=False, elem_id="update_btn")
+    
     # Hidden component to get latest blog data
     get_blogs_trigger = gr.Button("Get Blogs", visible=False, elem_id="get_blogs_trigger")
     blogs_data_output = gr.JSON(visible=False, elem_id="blogs_data_output")
@@ -1021,8 +1074,8 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     )
     
     category_dropdown.change(
-        fn=filter_blogs_by_category,
-        inputs=[category_dropdown, blogs_storage_state],
+        fn=handle_category_change,
+        inputs=[category_dropdown, blogs_storage_state, current_filter_state],
         outputs=[blog_cards_output, blogs_storage_state, current_filter_state]
     )
     
@@ -1030,6 +1083,20 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         fn=delete_blog_from_storage,
         inputs=[blog_id_input, blogs_storage_state, current_filter_state],
         outputs=[blog_cards_output, blogs_storage_state, current_filter_state]
+    )
+    
+    # Add update event handler
+    update_btn.click(
+        fn=update_blog,
+        inputs=[update_blog_id_input, update_title_input, update_content_input, update_category_input, blogs_storage_state, current_filter_state],
+        outputs=[blog_cards_output, blogs_storage_state, current_filter_state]
+    )
+    
+    # Add debug event handler
+    debug_btn.click(
+        fn=debug_state,
+        inputs=[blogs_storage_state, current_filter_state],
+        outputs=[debug_output]
     )
     
     # State management refresh
@@ -1445,19 +1512,32 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         const content = document.getElementById('editContent').value;
         const category = document.getElementById('editCategory').value;
         
-        // Update blog data
-        const blogIndex = blogsData.findIndex(b => b.id === blogId);
-        if (blogIndex !== -1) {{
-            blogsData[blogIndex].title = title;
-            blogsData[blogIndex].content = content;
-            blogsData[blogIndex].category = category;
-        }}
-        
-        // Close modal
+        // Close modal first
         closeModal('editModal');
         
-        // Refresh the display (you might need to trigger a Gradio refresh)
-        alert('Blog updated successfully! Please refresh the page to see changes.');
+        // Trigger Gradio update function to update backend state
+        const updateBlogIdInput = document.querySelector('#update_blog_id_input');
+        const updateTitleInput = document.querySelector('#update_title_input');
+        const updateContentInput = document.querySelector('#update_content_input');
+        const updateCategoryInput = document.querySelector('#update_category_input');
+        const updateBtn = document.querySelector('#update_btn');
+        
+        if (updateBlogIdInput && updateTitleInput && updateContentInput && updateCategoryInput && updateBtn) {{
+            // Set the values
+            updateBlogIdInput.value = blogId;
+            updateTitleInput.value = title;
+            updateContentInput.value = content;
+            updateCategoryInput.value = category;
+            
+            // Trigger the update
+            updateBtn.click();
+            
+            // Show success message
+            alert('Blog updated successfully!');
+        }} else {{
+            console.error('Update components not found');
+            alert('Update failed. Please try refreshing the page.');
+        }}
     }}
     
     // Function to format content for Medium/Substack style
