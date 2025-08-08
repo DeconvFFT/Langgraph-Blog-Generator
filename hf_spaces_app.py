@@ -904,6 +904,24 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         console.log('Blogs data refreshed:', blogsData);
     }}
     
+    // Function to get full blog content - simplified approach
+    function getFullBlogContent(blogId) {{
+        // First try to get from current JavaScript data
+        const blog = findBlogById(blogId);
+        if (blog && blog.content) {{
+            return blog.content;
+        }}
+        
+        // If not found, try to get from the original Python data
+        const originalData = {json.dumps(blogs_storage)};
+        const originalBlog = originalData.find(b => b.id === blogId);
+        if (originalBlog && originalBlog.content) {{
+            return originalBlog.content;
+        }}
+        
+        return null;
+    }}
+    
     function viewBlogModal(blogId) {{
         // Find blog data
         const blog = findBlogById(blogId);
@@ -1141,22 +1159,6 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         
         // Refresh the display (you might need to trigger a Gradio refresh)
         alert('Blog updated successfully! Please refresh the page to see changes.');
-    }}
-    
-    // Function to get full blog content from Python backend
-    function getFullBlogContent(blogId) {{
-        // Get the full content from the JavaScript data
-        const blog = findBlogById(blogId);
-        if (blog && blog.content) {{
-            // If content is just a preview, try to get the original content
-            if (blog.content.endsWith('...') && blog.content.length < 200) {{
-                // This is likely just a preview, try to find the original
-                const originalBlog = blogsData.find(b => b.id === blogId && b.content.length > 200);
-                return originalBlog ? originalBlog.content : blog.content;
-            }}
-            return blog.content;
-        }}
-        return null;
     }}
     
     // Function to format content for Medium/Substack style
