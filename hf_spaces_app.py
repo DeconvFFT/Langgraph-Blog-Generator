@@ -165,6 +165,7 @@ def generate_blog(topic: str, language: str) -> Dict[str, Any]:
         )
         
         response.raise_for_status()
+        console.log('response from API: ', response)
         return response.json()
         
     except Exception as e:
@@ -894,10 +895,12 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         console.log('=== END DEBUG ===');
     }}
     
-    // Function to find blog by ID
+    // Function to find blog by ID - simplified
     function findBlogById(blogId) {{
         console.log('Finding blog with ID:', blogId);
-        const blog = blogsData.find(blog => blog.id === blogId);
+        // Always use the Python data directly
+        const originalData = {json.dumps(blogs_storage)};
+        const blog = originalData.find(blog => blog.id === blogId);
         console.log('Found blog:', blog);
         return blog;
     }}
@@ -963,15 +966,6 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
             return originalBlog.content;
         }}
         
-        // Fallback to current JavaScript data
-        const blog = findBlogById(blogId);
-        console.log('Found blog in current data:', blog);
-        
-        if (blog && blog.content) {{
-            console.log('Content length from current data:', blog.content.length);
-            return blog.content;
-        }}
-        
         console.log('No content found for blog ID:', blogId);
         return '';
     }}
@@ -982,13 +976,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         // Get blog metadata from current data or original data
         let targetBlog = findBlogById(blogId);
         if (!targetBlog) {{
-            console.log('Blog not found in current data, trying original data...');
-            const originalData = {json.dumps(blogs_storage)};
-            targetBlog = originalData.find(b => b.id === blogId);
-        }}
-        
-        if (!targetBlog) {{
-            console.log('Blog not found in original data either. Available blogs:', {json.dumps(blogs_storage)});
+            console.log('Blog not found in original data. Available blogs:', {json.dumps(blogs_storage)});
             alert('Blog not found. This might be a temporary issue. Please try refreshing the page.');
             return;
         }}
@@ -1074,13 +1062,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         // Get blog metadata from current data or original data
         let targetBlog = findBlogById(blogId);
         if (!targetBlog) {{
-            console.log('Blog not found in current data, trying original data...');
-            const originalData = {json.dumps(blogs_storage)};
-            targetBlog = originalData.find(b => b.id === blogId);
-        }}
-        
-        if (!targetBlog) {{
-            console.log('Blog not found in original data either. Available blogs:', {json.dumps(blogs_storage)});
+            console.log('Blog not found in original data. Available blogs:', {json.dumps(blogs_storage)});
             alert('Blog not found. This might be a temporary issue. Please try refreshing the page.');
             return;
         }}
