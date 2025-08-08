@@ -1535,19 +1535,12 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
                  blogsData[blogIndex].category = category;
              }}
              
-             // Check if the current category filter should hide this blog
+             // Trigger Gradio category filter refresh to update the view properly
              const currentCategoryDropdown = document.querySelector('#category_dropdown select');
              if (currentCategoryDropdown) {{
-                 const selectedCategory = currentCategoryDropdown.value;
-                 
-                 // If we're filtering by a specific category and the blog no longer matches, hide it
-                 if (selectedCategory !== 'All' && selectedCategory !== category) {{
-                     blogCard.style.display = 'none';
-                     console.log('🔄 Blog hidden from ' + selectedCategory + ' filter (now categorized as ' + category + ')');
-                 }} else if (selectedCategory === 'All' || selectedCategory === category) {{
-                     blogCard.style.display = 'block';
-                     console.log('✅ Blog visible in ' + selectedCategory + ' filter');
-                 }}
+                 // Trigger change event to refresh the category filter
+                 currentCategoryDropdown.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                 console.log('✅ Category filter refreshed after blog update');
              }}
              
              console.log('✅ Blog card updated in DOM and category filtering applied');
