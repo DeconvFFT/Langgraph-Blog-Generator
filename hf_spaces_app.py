@@ -7,171 +7,10 @@ import os
 from datetime import datetime
 import uuid
 import html
-import pickle
-from pathlib import Path
 
 # Configuration
 API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')  # Default to localhost for development
 API_ENDPOINT = f"{API_BASE_URL}/blogs"
-
-# State Management
-STATE_FILE = "blog_state.pkl"
-BACKUP_STATE_FILE = "blog_state_backup.pkl"
-
-class BlogStateManager:
-    """State machine for managing blog data persistence"""
-    
-    def __init__(self):
-        self.state_file = Path(STATE_FILE)
-        self.backup_file = Path(BACKUP_STATE_FILE)
-        self.blogs_storage = []
-        self.current_filter = "All"
-        self.last_save_time = None
-        self.load_state()
-    
-    def load_state(self):
-        """Load state from file with fallback to backup"""
-        try:
-            if self.state_file.exists():
-                with open(self.state_file, 'rb') as f:
-                    state_data = pickle.load(f)
-                    self.blogs_storage = state_data.get('blogs_storage', [])
-                    self.current_filter = state_data.get('current_filter', 'All')
-                    self.last_save_time = state_data.get('last_save_time')
-                    print(f"✅ State loaded from {STATE_FILE}")
-                    print(f"📦 Loaded {len(self.blogs_storage)} blogs")
-            elif self.backup_file.exists():
-                with open(self.backup_file, 'rb') as f:
-                    state_data = pickle.load(f)
-                    self.blogs_storage = state_data.get('blogs_storage', [])
-                    self.current_filter = state_data.get('current_filter', 'All')
-                    self.last_save_time = state_data.get('last_save_time')
-                    print(f"✅ State loaded from backup {BACKUP_STATE_FILE}")
-                    print(f"📦 Loaded {len(self.blogs_storage)} blogs")
-            else:
-                print("🆕 No existing state found, starting fresh")
-        except Exception as e:
-            print(f"⚠️ Error loading state: {e}")
-            self.blogs_storage = []
-            self.current_filter = "All"
-    
-    def save_state(self):
-        """Save current state to file with backup"""
-        try:
-            state_data = {
-                'blogs_storage': self.blogs_storage,
-                'current_filter': self.current_filter,
-                'last_save_time': datetime.now().isoformat(),
-                'version': '1.0'
-            }
-            
-            # Create backup first
-            if self.state_file.exists():
-                self.state_file.rename(self.backup_file)
-            
-            # Save new state
-            with open(self.state_file, 'wb') as f:
-                pickle.dump(state_data, f)
-            
-            print(f"💾 State saved to {STATE_FILE}")
-            print(f"📦 Saved {len(self.blogs_storage)} blogs")
-            
-        except Exception as e:
-            print(f"❌ Error saving state: {e}")
-            # Try to restore backup if save failed
-            if self.backup_file.exists() and not self.state_file.exists():
-                self.backup_file.rename(self.state_file)
-                print("🔄 Restored backup after save failure")
-    
-    def add_blog(self, blog: Dict[str, Any]):
-        """Add a blog and persist state"""
-        self.blogs_storage.append(blog)
-        self.save_state()
-        print(f"➕ Blog added: {blog.get('title', 'Untitled')}")
-    
-    def update_blog(self, blog_id: str, updates: Dict[str, Any]):
-        """Update a blog and persist state"""
-        for blog in self.blogs_storage:
-            if blog.get('id') == blog_id:
-                blog.update(updates)
-                blog['updated_at'] = datetime.now().strftime("%B %d, %Y")
-                self.save_state()
-                print(f"✏️ Blog updated: {blog.get('title', 'Untitled')}")
-                return True
-        return False
-    
-    def delete_blog(self, blog_id: str):
-        """Delete a blog and persist state"""
-        initial_count = len(self.blogs_storage)
-        self.blogs_storage = [blog for blog in self.blogs_storage if blog.get('id') != blog_id]
-        if len(self.blogs_storage) < initial_count:
-            self.save_state()
-            print(f"🗑️ Blog deleted: {blog_id}")
-            return True
-        return False
-    
-    def get_blogs(self, category_filter: str = "All"):
-        """Get blogs with optional category filter"""
-        self.current_filter = category_filter
-        if category_filter == "All":
-            return self.blogs_storage
-        return [blog for blog in self.blogs_storage if blog.get('category') == category_filter]
-    
-    def get_blog_by_id(self, blog_id: str) -> Optional[Dict]:
-        """Get a specific blog by ID"""
-        for blog in self.blogs_storage:
-            if blog.get('id') == blog_id:
-                return blog
-        return None
-    
-    def get_state_summary(self) -> Dict[str, Any]:
-        """Get a summary of current state"""
-        return {
-            'total_blogs': len(self.blogs_storage),
-            'current_filter': self.current_filter,
-            'categories': list(set(blog.get('category', 'Unknown') for blog in self.blogs_storage)),
-            'last_save_time': self.last_save_time,
-            'storage_size': len(pickle.dumps(self.blogs_storage)) if self.blogs_storage else 0
-        }
-
-# Initialize state manager
-state_manager = BlogStateManager()
-
-# Global variables for compatibility with existing code - properly synchronized
-def get_blogs_storage():
-    """Get the current blogs storage from state manager"""
-    return state_manager.blogs_storage
-
-def get_current_filter():
-    """Get the current filter from state manager"""
-    return state_manager.current_filter
-
-# Initialize global variables with state manager data
-blogs_storage = get_blogs_storage()
-current_filter = get_current_filter()
-
-# Function to refresh global variables from state manager
-def refresh_global_variables():
-    """Refresh global variables from state manager"""
-    global blogs_storage, current_filter
-    blogs_storage = get_blogs_storage()
-    current_filter = get_current_filter()
-    print(f"🔄 Global variables refreshed: {len(blogs_storage)} blogs, filter: {current_filter}")
-
-def initialize_app_state():
-    """Initialize the app state and ensure proper synchronization"""
-    global blogs_storage, current_filter
-    
-    # Refresh global variables from state manager
-    refresh_global_variables()
-    
-    # Generate initial blog cards
-    initial_cards = generate_blog_cards(blogs_storage, current_filter)
-    
-    print(f"🚀 App initialized with {len(blogs_storage)} blogs")
-    print(f"🎯 Current filter: {current_filter}")
-    
-    return initial_cards
 
 # Supported languages
 SUPPORTED_LANGUAGES = [
@@ -337,7 +176,7 @@ def generate_blog(topic: str, language: str) -> Dict[str, Any]:
         return {
             "success": False,
             "error": "Connection failed",
-            "message": f"Cannot connect to API at {API_ENDPOINT}. Please check if the API server is running."
+            "message": f"Cannot connect to API at {API_ENDPOINT}. Please check if the API server is running. If you're using Hugging Face Spaces, make sure to set the API_BASE_URL secret to your Railway API endpoint."
         }
     except requests.exceptions.Timeout:
         return {
@@ -346,11 +185,18 @@ def generate_blog(topic: str, language: str) -> Dict[str, Any]:
             "message": "The API request timed out. Please try again."
         }
     except requests.exceptions.HTTPError as e:
-        return {
-            "success": False,
-            "error": "HTTP error",
-            "message": f"API returned error {e.response.status_code}: {e.response.text}"
-        }
+        if e.response.status_code == 502:
+            return {
+                "success": False,
+                "error": "API server error (502)",
+                "message": f"The API server is not responding (502 error). Please check if your FastAPI backend is running. Current API endpoint: {API_ENDPOINT}"
+            }
+        else:
+            return {
+                "success": False,
+                "error": "HTTP error",
+                "message": f"API returned error {e.response.status_code}: {e.response.text}"
+            }
     except Exception as e:
         return {
             "success": False,
@@ -358,10 +204,10 @@ def generate_blog(topic: str, language: str) -> Dict[str, Any]:
             "message": f"Error: {str(e)}"
         }
 
-def check_duplicate_blog(title: str) -> bool:
+def check_duplicate_blog(title: str, blogs_storage: List[Dict]) -> bool:
     """Check if a blog with the same title already exists"""
     title_lower = clean_title(title).lower().strip()
-    for blog in state_manager.blogs_storage:
+    for blog in blogs_storage:
         if clean_title(blog.get('title', '')).lower().strip() == title_lower:
             return True
     return False
@@ -604,12 +450,10 @@ def create_blog_card(blog: Dict[str, Any]) -> str:
     
     return card_html
 
-def generate_and_save_blog(topic: str, language: str) -> tuple:
-    """Generate a blog and save it to storage"""
-    global blogs_storage
-    
+def generate_and_save_blog(topic: str, language: str, blogs_storage: List[Dict], current_filter: str) -> tuple:
+    """Generate a blog and save it to storage using Gradio State"""
     if not topic.strip():
-        return "", "⚠️ Please enter a topic for the blog."
+        return "", "⚠️ Please enter a topic for the blog.", blogs_storage, current_filter
     
     print(f"🚀 Starting blog generation for topic: {topic}")
     print(f"🌍 Language: {language}")
@@ -622,7 +466,7 @@ def generate_and_save_blog(topic: str, language: str) -> tuple:
     if not result.get('success', False):
         error_message = f"❌ {result.get('message', 'An error occurred')}"
         print(f"❌ Generation failed: {error_message}")
-        return "", error_message
+        return "", error_message, blogs_storage, current_filter
     
     # Extract blog data
     data = result.get('data', {})
@@ -633,7 +477,7 @@ def generate_and_save_blog(topic: str, language: str) -> tuple:
     
     if not blog_content:
         print("❌ No blog content found in API response")
-        return "", "❌ No blog content was generated."
+        return "", "❌ No blog content was generated.", blogs_storage, current_filter
     
     # Get the generated title and clean it
     generated_title = blog_content.get('title', f'Blog about {topic}')
@@ -643,15 +487,15 @@ def generate_and_save_blog(topic: str, language: str) -> tuple:
     print(f"🧹 Cleaned title: {cleaned_title}")
     
     # Check for duplicate blog
-    if check_duplicate_blog(cleaned_title):
+    if check_duplicate_blog(cleaned_title, blogs_storage):
         print(f"⚠️ Duplicate blog found: {cleaned_title}")
-        return "", "❌ Blog already exists with this title."
+        return "", "❌ Blog already exists with this title.", blogs_storage, current_filter
     
     # Clean the content
     raw_content = blog_content.get('content', '')
     if not raw_content:
         print("❌ No content found in API response")
-        return "", "❌ No content was generated in the API response."
+        return "", "❌ No content was generated in the API response.", blogs_storage, current_filter
     
     print(f"📄 Raw content length: {len(raw_content)} characters")
     print(f"📄 Raw content preview: {raw_content[:200]}...")
@@ -676,21 +520,17 @@ def generate_and_save_blog(topic: str, language: str) -> tuple:
     print(f"💾 Created blog object: {blog}")
     
     # Add to storage
-    state_manager.add_blog(blog)
+    updated_blogs = blogs_storage + [blog]
     
-    # Refresh global variables to stay in sync
-    refresh_global_variables()
-    
-    print(f"📦 Added to storage. Total blogs: {len(blogs_storage)}")
-    print(f"📦 Current blogs_storage: {blogs_storage}")
+    print(f"📦 Added to storage. Total blogs: {len(updated_blogs)}")
     
     # Generate all blog cards
-    all_cards = generate_blog_cards(blogs_storage, current_filter)
+    all_cards = generate_blog_cards(updated_blogs, current_filter)
     
     success_message = f"✅ Blog '{blog['title']}' generated and saved successfully!"
     print(f"✅ {success_message}")
     
-    return all_cards, success_message
+    return all_cards, success_message, updated_blogs, current_filter
 
 def generate_blog_cards(blogs: List[Dict], selected_category: str) -> str:
     """Generate HTML for all blog cards in 4-column grid layout"""
@@ -734,55 +574,67 @@ def generate_blog_cards(blogs: List[Dict], selected_category: str) -> str:
     
     return cards_html
 
-def filter_blogs_by_category(selected_category: str) -> str:
-    """Filter blogs by category"""
-    global current_filter
-    current_filter = selected_category
+def filter_blogs_by_category(selected_category: str, blogs_storage: List[Dict]) -> tuple:
+    """Filter blogs by category using Gradio State"""
+    # Get fresh data and filter
+    if selected_category != "All":
+        filtered_blogs = [blog for blog in blogs_storage if blog.get('category') == selected_category]
+    else:
+        filtered_blogs = blogs_storage
     
-    # Update the state manager's current filter
-    state_manager.current_filter = selected_category
-    
-    return generate_blog_cards(state_manager.get_blogs(selected_category), selected_category)
+    cards_html = generate_blog_cards(filtered_blogs, selected_category)
+    return cards_html, blogs_storage, selected_category
 
-def delete_blog_from_storage(blog_id: str) -> str:
-    """Delete a blog from storage"""
-    global blogs_storage
+def delete_blog_from_storage(blog_id: str, blogs_storage: List[Dict], current_filter: str) -> tuple:
+    """Delete a blog from storage using Gradio State"""
+    # Delete blog
+    updated_blogs = [blog for blog in blogs_storage if blog.get('id') != blog_id]
     
-    # Delete via state manager
-    success = state_manager.delete_blog(blog_id)
-    
-    if success:
-        # Refresh global variables to stay in sync
-        refresh_global_variables()
-        print(f"🗑️ Blog deleted successfully. Remaining blogs: {len(blogs_storage)}")
+    if len(updated_blogs) < len(blogs_storage):
+        print(f"🗑️ Blog deleted successfully. Remaining blogs: {len(updated_blogs)}")
     else:
         print(f"⚠️ Blog deletion failed for ID: {blog_id}")
     
-    return generate_blog_cards(blogs_storage, current_filter)
+    # Generate updated cards
+    cards_html = generate_blog_cards(updated_blogs, current_filter)
+    return cards_html, updated_blogs, current_filter
 
-def get_blog_by_id(blog_id: str) -> Optional[Dict]:
+def get_blog_by_id(blog_id: str, blogs_storage: List[Dict]) -> Optional[Dict]:
     """Get a blog by its ID"""
-    return state_manager.get_blog_by_id(blog_id)
+    for blog in blogs_storage:
+        if blog.get('id') == blog_id:
+            return blog
+    return None
 
-def update_blog(blog_id: str, title: str, content: str, category: str) -> str:
-    """Update a blog"""
-    global blogs_storage
+def update_blog(blog_id: str, title: str, content: str, category: str, blogs_storage: List[Dict], current_filter: str) -> tuple:
+    """Update a blog using Gradio State"""
+    # Update blog
+    updated_blogs = []
+    success = False
     
-    # Update via state manager
-    success = state_manager.update_blog(blog_id, {
-        'title': clean_title(title), 
-        'content': clean_content(content), 
-        'category': category
-    })
+    for blog in blogs_storage:
+        if blog.get('id') == blog_id:
+            updated_blog = blog.copy()
+            updated_blog.update({
+                'title': clean_title(title), 
+                'content': clean_content(content), 
+                'category': category,
+                'updated_at': datetime.now().strftime("%B %d, %Y")
+            })
+            updated_blogs.append(updated_blog)
+            success = True
+            print(f"✏️ Blog updated successfully: {updated_blog.get('title', 'Untitled')}")
+        else:
+            updated_blogs.append(blog)
     
     if success:
-        # Refresh global variables to stay in sync
-        refresh_global_variables()
-        print(f"✏️ Blog updated successfully. Total blogs: {len(blogs_storage)}")
+        print(f"✏️ Blog updated successfully. Total blogs: {len(updated_blogs)}")
     else:
         print(f"⚠️ Blog update failed for ID: {blog_id}")
     
-    return generate_blog_cards(blogs_storage, current_filter)
+    # Generate updated cards
+    cards_html = generate_blog_cards(updated_blogs, current_filter)
+    return cards_html, updated_blogs, current_filter
 
 def check_api_status() -> str:
     """Check if the API is available"""
@@ -812,6 +664,29 @@ def get_api_status_message() -> str:
 def refresh_status() -> str:
     """Refresh the API status"""
     return get_api_status_message()
+
+def get_state_summary(blogs_storage: List[Dict]) -> str:
+    """Get a summary of current state for display"""
+    return f"""
+    <div style="
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 12px;
+        margin: 10px 0;
+        font-size: 0.9rem;
+    ">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <strong>💾 State Management:</strong> 
+                <span style="opacity: 0.9;">{len(blogs_storage)} blogs saved</span>
+            </div>
+            <div style="opacity: 0.8; font-size: 0.8rem;">
+                Last updated: {datetime.now().strftime("%B %d, %Y at %H:%M")}
+            </div>
+        </div>
+    </div>
+    """
 
 # Custom CSS for better styling
 custom_css = """
@@ -1032,8 +907,12 @@ custom_css = """
 </style>
 """
 
-# Create Gradio interface
+# Create Gradio interface with State management
 with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
+    # Gradio State components for persistent state management
+    blogs_storage_state = gr.State(value=[])  # Store blogs data
+    current_filter_state = gr.State(value="All")  # Store current filter
+    
     gr.HTML("""
     <div style="text-align: center; margin-bottom: 40px;">
         <h1 style="
@@ -1102,26 +981,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     # State Management Status Section
     with gr.Row():
         state_status = gr.HTML(
-            value=f"""
-            <div style="
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                padding: 15px;
-                border-radius: 12px;
-                margin: 10px 0;
-                font-size: 0.9rem;
-            ">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                    <div>
-                        <strong>💾 State Management:</strong> 
-                        <span style="opacity: 0.9;">{state_manager.get_state_summary()['total_blogs']} blogs saved</span>
-                    </div>
-                    <div style="opacity: 0.8; font-size: 0.8rem;">
-                        Last saved: {state_manager.get_state_summary()['last_save_time'] or 'Never'}
-                    </div>
-                </div>
-            </div>
-            """,
+            value=get_state_summary([]),
             label="💾 State Status"
         )
     
@@ -1138,7 +998,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     with gr.Row():
         blog_cards_output = gr.HTML(
             label="📄 Your Blog Portfolio",
-            value=initialize_app_state() # Initialize here
+            value=generate_blog_cards([], "All")
         )
 
     # Hidden components for blog operations
@@ -1149,64 +1009,44 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     get_blogs_trigger = gr.Button("Get Blogs", visible=False, elem_id="get_blogs_trigger")
     blogs_data_output = gr.JSON(visible=False, elem_id="blogs_data_output")
     
-    def get_current_blogs_data():
+    def get_current_blogs_data(blogs_storage):
         """Get current blogs data for JavaScript"""
         return blogs_storage
     
-    # Event handlers
+    # Event handlers with State management
     generate_btn.click(
         fn=generate_and_save_blog,
-        inputs=[topic_input, language_dropdown],
-        outputs=[blog_cards_output, status_output]
+        inputs=[topic_input, language_dropdown, blogs_storage_state, current_filter_state],
+        outputs=[blog_cards_output, status_output, blogs_storage_state, current_filter_state]
     )
     
     category_dropdown.change(
         fn=filter_blogs_by_category,
-        inputs=[category_dropdown],
-        outputs=[blog_cards_output]
+        inputs=[category_dropdown, blogs_storage_state],
+        outputs=[blog_cards_output, blogs_storage_state, current_filter_state]
     )
-    
-    # Hidden components for blog operations
-    blog_id_input = gr.Textbox(visible=False, elem_id="blog_id_input")
-    delete_btn = gr.Button("Delete", visible=False, elem_id="delete_btn")
     
     delete_btn.click(
         fn=delete_blog_from_storage,
-        inputs=[blog_id_input],
-        outputs=[blog_cards_output]
+        inputs=[blog_id_input, blogs_storage_state, current_filter_state],
+        outputs=[blog_cards_output, blogs_storage_state, current_filter_state]
     )
     
     # State management refresh
-    def refresh_state_status():
+    def refresh_state_status(blogs_storage):
         """Refresh the state management status display"""
-        summary = state_manager.get_state_summary()
-        return f"""
-        <div style="
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 15px;
-            border-radius: 12px;
-            margin: 10px 0;
-            font-size: 0.9rem;
-        ">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                <div>
-                    <strong>💾 State Management:</strong> 
-                    <span style="opacity: 0.9;">{summary['total_blogs']} blogs saved</span>
-                </div>
-                <div style="opacity: 0.8; font-size: 0.8rem;">
-                    Last saved: {summary['last_save_time'] or 'Never'}
-                </div>
-            </div>
-        </div>
-        """
+        return get_state_summary(blogs_storage)
     
-    # Note: Auto-refresh is not supported in this Gradio version
-    # State status will be updated when new blogs are generated
+    # Update state status when blogs change
+    blogs_storage_state.change(
+        fn=refresh_state_status,
+        inputs=[blogs_storage_state],
+        outputs=[state_status]
+    )
     
     get_blogs_trigger.click(
         fn=get_current_blogs_data,
-        inputs=[],
+        inputs=[blogs_storage_state],
         outputs=[blogs_data_output]
     )
     
@@ -1214,7 +1054,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
     gr.HTML(f"""
     <script>
     // Global variables for blog data - synchronized with Python backend
-    let blogsData = {json.dumps(state_manager.blogs_storage)};
+    let blogsData = [];
     
     // Function to update blogs data from Python backend
     function updateBlogsData(newData) {{
@@ -1226,7 +1066,7 @@ with gr.Blocks(css=custom_css, title="Blog Portfolio Manager") as demo:
         // This function will be called to get the most recent data from Python
         // For now, we'll use the initial data, but in a real implementation,
         // this would make an AJAX call to get the latest data
-        return {json.dumps(state_manager.blogs_storage)};
+        return [];
     }}
     
     // Function to sync JavaScript data with Python data
