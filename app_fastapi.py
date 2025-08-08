@@ -67,6 +67,16 @@ async def create_blogs(blog_request: BlogRequest):
     try:
         logger.info(f"Received blog creation request for topic: {blog_request.topic}")
         
+        # Check if GROQ_API_KEY is set
+        groq_key = os.getenv('GROQ_API_KEY')
+        if not groq_key:
+            logger.error("❌ GROQ_API_KEY environment variable is not set")
+            return BlogResponse(
+                success=False,
+                error="Missing API key",
+                message="GROQ_API_KEY environment variable is not set. Please set this in your Railway environment variables."
+            )
+        
         # Initialize LLM
         try:
             groqllm = GroqLLM()
@@ -162,7 +172,23 @@ async def create_blogs(blog_request: BlogRequest):
 @app.get('/health')
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "service": "Blog Generator API"}
+    return {
+        "status": "healthy", 
+        "service": "Blog Generator API",
+        "environment": os.getenv('RAILWAY_ENVIRONMENT', 'unknown'),
+        "groq_key_set": bool(os.getenv('GROQ_API_KEY'))
+    }
+
+@app.get('/test')
+async def test():
+    """Test endpoint to verify the API is working"""
+    return {
+        "message": "API is working!",
+        "environment": os.getenv('RAILWAY_ENVIRONMENT', 'unknown'),
+        "port": os.getenv('PORT', 'unknown'),
+        "groq_key_set": bool(os.getenv('GROQ_API_KEY')),
+        "groq_key_length": len(os.getenv('GROQ_API_KEY', ''))
+    }
 
 
 @app.get('/')
