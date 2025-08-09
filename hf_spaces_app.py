@@ -9,7 +9,7 @@ from typing import List, Dict, Optional, Tuple
 import os
 
 # Configuration
-API_BASE_URL = os.getenv("API_BASE_URL", "https://your-api-domain.railway.app")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://langgraph-blog-generator-production.up.railway.app")
 SUPPORTED_LANGUAGES = ["English", "Spanish", "French", "German", "Italian", "Portuguese", "Dutch", "Russian", "Chinese", "Japanese"]
 
 # Blog categories for tech and wellness topics
