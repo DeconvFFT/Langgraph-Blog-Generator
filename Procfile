@@ -1,1 +1,1 @@
-web: python app_fastapi.py
+web: python app.py
